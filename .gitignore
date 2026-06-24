@@ -1,0 +1,15 @@
+# .NET
+bin/
+obj/
+*.user
+.vs/
+
+# Generated designs and CFD output
+designs/
+
+# External tools (SU2 binaries, downloaded by setup)
+tools/
+
+# OS
+Thumbs.db
+.DS_Store

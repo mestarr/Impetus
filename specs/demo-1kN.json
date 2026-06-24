@@ -1,0 +1,18 @@
+{
+  "name": "IMP-1K-A",
+  "thrustN": 1000,
+  "chamberPressureBar": 20,
+  "ambientPressureBar": 1.01325,
+  "propellants": "LOX_Kerosene",
+  "ofRatio": 2.3,
+  "expansionRatio": 0,
+  "bellFraction": 0.8,
+  "contractionRatio": 4.0,
+  "wallThicknessMM": 3.0,
+  "cooling": {
+    "count": 24,
+    "diameterMM": 1.4,
+    "helixTurns": 1.0
+  },
+  "voxelSizeMM": 0.4
+}
