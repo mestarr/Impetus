@@ -133,13 +133,25 @@ if (strCmd is "design" or "all")
     ThrusterBuilder oBuilder = new(lib, oDesign, oContour);
 
     Voxels voxEngine = oBuilder.voxBuild();
-    voxEngine.mshAsMesh().SaveToStlFile(Path.Combine(strOutDir, "engine.stl"));
+    Mesh mshEngine = voxEngine.mshAsMesh();
+    MeshExport.SaveMeshFiles(
+        mshEngine,
+        Path.Combine(strOutDir, "engine.stl"),
+        Path.Combine(strOutDir, "engine.3mf"),
+        oSpec.Name);
 
     Voxels voxCut = oBuilder.voxCutaway(voxEngine);
-    voxCut.mshAsMesh().SaveToStlFile(Path.Combine(strOutDir, "engine_cutaway.stl"));
+    Mesh mshCut = voxCut.mshAsMesh();
+    MeshExport.SaveMeshFiles(
+        mshCut,
+        Path.Combine(strOutDir, "engine_cutaway.stl"),
+        Path.Combine(strOutDir, "engine_cutaway.3mf"),
+        oSpec.Name + " (cutaway)");
 
     Console.WriteLine($"  -> {Path.Combine(strOutDir, "engine.stl")}");
+    Console.WriteLine($"  -> {Path.Combine(strOutDir, "engine.3mf")}");
     Console.WriteLine($"  -> {Path.Combine(strOutDir, "engine_cutaway.stl")}");
+    Console.WriteLine($"  -> {Path.Combine(strOutDir, "engine_cutaway.3mf")}");
 }
 
 if (strCmd is "test" or "all")
