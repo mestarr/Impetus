@@ -111,7 +111,9 @@ Results land in `designs/<name>/`:
 |---|---|
 | `report.md` | full design dossier: performance, dimensions, thermal, CFD vs analytic |
 | `engine.stl` | the engine, millimeter units, watertight — ready for slicing |
+| `engine.3mf` | same geometry as `engine.stl`, 3MF with explicit mm units (good for Kobra S1 / Anycubic Slicer Next) |
 | `engine_cutaway.stl` | half-section showing cooling channels and injector |
+| `engine_cutaway.3mf` | cutaway in 3MF format |
 | `cfd/flow.vtu` | CFD flow field (open in ParaView) |
 | `cfd/su2.log` | solver log |
 
@@ -119,16 +121,14 @@ Results land in `designs/<name>/`:
 
 ### STL or 3MF?
 
-Both are valid 3D-print formats. There is no single “correct” one:
+Impetus exports **both** formats on every `design` / `all` run:
 
 | Format | Notes |
 |---|---|
-| **`.stl`** | Older, universal. Every slicer accepts it. **Impetus exports this.** |
-| **`.3mf`** | Newer (ZIP + XML). Can store units, multiple parts, slicer metadata. Supported by Anycubic Slicer Next, OrcaSlicer, PrusaSlicer, etc. |
+| **`.stl`** | Universal — every slicer accepts it. |
+| **`.3mf`** | ZIP + XML with explicit **millimeter** units. Preferred for Anycubic Slicer Next / Kobra S1. |
 
-**For your Anycubic Kobra S1 Combo:** import the generated **`engine.stl` directly** — no conversion needed. If you prefer `.3mf`, open the STL in Anycubic Slicer Next and use **File → Export → Export model as 3MF** (or slice from STL and save the project as `.3mf`).
-
-Impetus does not write `.3mf` yet (PicoGK only provides STL export). STL is fine for slicing and printing.
+**For your Anycubic Kobra S1 Combo:** import **`engine.3mf`** (or `engine.stl` — both are true-scale mm geometry, no scaling needed).
 
 The models are true-scale millimeter geometry. The demo engine
 (~Ø74 mm flange × ~185 mm tall) fits a 250 mm-class printer such as the
@@ -138,7 +138,7 @@ is metal powder-bed fusion (CuCrZr / Inconel).
 
 Recipe (Anycubic Slicer Next / OrcaSlicer):
 
-1. Import `designs/<name>/engine.stl` (units are mm — no scaling needed).
+1. Import `designs/<name>/engine.3mf` or `engine.stl` (units are mm — no scaling needed).
 2. Orientation:
    - **Full engine:** stand it on the flat injector flange, nozzle up.
      All walls stay within ~30° of vertical, so it prints essentially

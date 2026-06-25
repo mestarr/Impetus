@@ -64,7 +64,9 @@ designs/IMP-1K-A/
 ├── report.md            ← the dossier: spec, performance, geometry,
 │                          thermal, injector, CFD-vs-analytic table
 ├── engine.stl           ← full engine, mm units, watertight
+├── engine.3mf           ← same geometry, 3MF with explicit mm units
 ├── engine_cutaway.stl   ← y<0 half removed: inspect channels & manifolds
+├── engine_cutaway.3mf   ← cutaway in 3MF
 └── cfd/
     ├── mesh.su2         ← structured axisymmetric mesh (text)
     ├── engine.cfg       ← complete SU2 configuration (text, hand-editable)
