@@ -189,6 +189,7 @@ Detailed engineering documentation lives in [`docs/`](docs/01-overview.md):
 | [06 Spec reference](docs/06-spec-reference.md) | every input field, ranges, iteration recipes |
 | [07 Workflow](docs/07-workflow.md) | install, run, iterate, troubleshoot |
 | [08 Roadmap](docs/08-roadmap.md) | limitations in detail and upgrade paths |
+| [09 Improvement backlog](docs/09-improvement-backlog.md) | prioritized backlog: quick wins, physics, print workflow, UX |
 
 ## Honest limitations (v1)
 

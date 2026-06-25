@@ -118,3 +118,4 @@ Impetus/
 | [06-spec-reference.md](06-spec-reference.md) | Every spec field: meaning, units, sane ranges |
 | [07-workflow.md](07-workflow.md) | Install, run, iterate, troubleshoot |
 | [08-roadmap.md](08-roadmap.md) | Limitations in detail + planned upgrades |
+| [09-improvement-backlog.md](09-improvement-backlog.md) | Prioritized improvement backlog (all tiers) |
