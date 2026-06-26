@@ -62,9 +62,11 @@ cd C:\Users\<you>\Impetus
 dotnet build src/Impetus
 ```
 
-**4. Sanity check** (one beam through the whole PicoGK pipeline, headless):
+**4. Sanity check** (build, unit tests, PicoGK smoke):
 
 ```powershell
+dotnet build Impetus.sln
+dotnet test tests/Impetus.Tests
 dotnet run --project src/Impetus -- smoke
 ```
 
@@ -78,8 +80,11 @@ All commands run from the repository root:
 # FULL LOOP: sizing -> geometry/STL -> CFD virtual test -> report
 dotnet run --project src/Impetus -- all specs/demo-1kN.json
 
-# fast inner loop: sizing + geometry + STL only (seconds-to-minutes)
+# fast inner loop: sizing + geometry + STL/3MF only (seconds-to-minutes)
 dotnet run --project src/Impetus -- design specs/demo-1kN.json
+
+# slicer / bed-fit summary without regenerating geometry (fast)
+dotnet run --project src/Impetus -- print specs/demo-1kN.json
 
 # virtual test only (SU2 CFD, ~30 min on a typical desktop)
 dotnet run --project src/Impetus -- test specs/demo-1kN.json
@@ -111,7 +116,7 @@ Results land in `designs/<name>/`:
 |---|---|
 | `report.md` | full design dossier: performance, dimensions, thermal, CFD vs analytic |
 | `engine.stl` | the engine, millimeter units, watertight — ready for slicing |
-| `engine.3mf` | same geometry as `engine.stl`, 3MF with explicit mm units (good for Kobra S1 / Anycubic Slicer Next) |
+| `engine.3mf` | same assembly as STL, 3MF with mm units — **three objects:** `body`, `injector`, `flange` |
 | `engine_cutaway.stl` | half-section showing cooling channels and injector |
 | `engine_cutaway.3mf` | cutaway in 3MF format |
 | `cfd/flow.vtu` | CFD flow field (open in ParaView) |
@@ -189,6 +194,7 @@ Detailed engineering documentation lives in [`docs/`](docs/01-overview.md):
 | [06 Spec reference](docs/06-spec-reference.md) | every input field, ranges, iteration recipes |
 | [07 Workflow](docs/07-workflow.md) | install, run, iterate, troubleshoot |
 | [08 Roadmap](docs/08-roadmap.md) | limitations in detail and upgrade paths |
+| [09 Improvement backlog](docs/09-improvement-backlog.md) | prioritized backlog: quick wins, physics, print workflow, UX |
 
 ## Honest limitations (v1)
 

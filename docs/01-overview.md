@@ -82,29 +82,27 @@ Impetus/
 ├── specs/                  ← input specifications (JSON), the only thing you edit
 │   └── demo-1kN.json
 ├── src/Impetus/            ← the computational model (C# / .NET 10)
-│   ├── Program.cs          ← CLI entry: design | test | all | view
+│   ├── Program.cs          ← CLI entry (delegates to Cli/ImpetusApp.cs)
+│   ├── Cli/                ← command orchestration
 │   ├── EngineSpec.cs       ← spec schema + loader
 │   ├── Physics/
-│   │   ├── GasModel.cs     ← combustion gas property tables
-│   │   ├── IsentropicFlow.cs ← compressible flow relations
-│   │   ├── EngineSizing.cs ← spec → dimensions/performance
-│   │   ├── NozzleContour.cs← chamber + Rao bell wall contour
-│   │   └── ThermalModel.cs ← Bartz heat flux + cooling balance
 │   ├── Geometry/
-│   │   └── ThrusterBuilder.cs ← PicoGK voxel geometry generation
+│   │   ├── ThrusterBuilder.cs
+│   │   └── MeshExport.cs   ← STL + 3MF export
 │   ├── Cfd/
-│   │   ├── Su2Case.cs      ← native .su2 mesh writer + solver config
-│   │   └── Su2Runner.cs    ← process control + exit-plane integration
 │   └── Reporting/
-│       └── DesignReport.cs ← markdown dossier generator
+│       ├── DesignReport.cs
+│       └── PrintReport.cs  ← FDM / slicer section in report.md
+├── tests/Impetus.Tests/    ← unit tests (xUnit)
 ├── designs/                ← generated output (gitignored)
 │   └── <engine name>/
 │       ├── report.md
-│       ├── engine.stl
-│       ├── engine_cutaway.stl
+│       ├── engine.stl / engine.3mf
+│       ├── engine_cutaway.stl / engine_cutaway.3mf
 │       └── cfd/ (mesh, config, log, flow field)
 ├── tools/SU2/              ← SU2 binaries (gitignored)
-└── docs/                   ← you are here
+├── Impetus.sln
+└── docs/
 ```
 
 ## 1.5 Documentation map
@@ -118,3 +116,4 @@ Impetus/
 | [06-spec-reference.md](06-spec-reference.md) | Every spec field: meaning, units, sane ranges |
 | [07-workflow.md](07-workflow.md) | Install, run, iterate, troubleshoot |
 | [08-roadmap.md](08-roadmap.md) | Limitations in detail + planned upgrades |
+| [09-improvement-backlog.md](09-improvement-backlog.md) | Prioritized improvement backlog (all tiers) |
