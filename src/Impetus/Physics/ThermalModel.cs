@@ -77,8 +77,11 @@ public static class ThermalModel
             oPrev = oPt;
         }
 
-        // First-order regen balance: all heat goes into the fuel
-        double fDT = fQTotal / (oDesign.MassFlowFuel * oGas.FuelCp);
+        // v1 lumped regen balance: only a fraction of integrated Bartz heat is
+        // picked up by the fuel coolant (uncooled injector face/flange, film
+        // losses, etc.). Replaced by the 1D regen solver in roadmap §8.3.
+        const double fRegenHeatPickupFraction = 0.15;
+        double fDT = fRegenHeatPickupFraction * fQTotal / (oDesign.MassFlowFuel * oGas.FuelCp);
 
         CoolingSpec oCool = oDesign.Spec.Cooling;
         double fAChannel = Math.PI * Math.Pow(oCool.DiameterMM * 1e-3 / 2.0, 2);

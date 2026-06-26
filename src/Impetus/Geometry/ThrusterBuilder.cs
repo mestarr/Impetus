@@ -4,6 +4,9 @@ using PicoGK;
 
 namespace Impetus.Geometry;
 
+/// <summary>Regeneratively-cooled wall, injector plate, and mounting flange as separate solids.</summary>
+public readonly record struct EngineComponents(Voxels Body, Voxels Injector, Voxels Flange);
+
 /// <summary>
 /// Turns an EngineDesign + NozzleContour into solid voxel geometry:
 /// regeneratively-cooled chamber/nozzle wall, helical cooling channels with
@@ -31,20 +34,32 @@ public class ThrusterBuilder
         m_fWall = Math.Max(oDesign.Spec.WallThicknessMM, m_fChanD + 1.6);
     }
 
-    /// <summary>Build the complete engine. Returns the solid voxel field.</summary>
-    public Voxels voxBuild()
+    /// <summary>Build body, injector plate, and flange as separate voxel fields.</summary>
+    public EngineComponents voxBuildComponents()
     {
         Console.WriteLine("  [geo] wall (revolve outer/inner)...");
-        Voxels voxEngine = voxWall();
+        Voxels voxBody = voxWall();
         Console.WriteLine("  [geo] cooling channels...");
         Voxels voxChannels = voxCoolingChannels();
         Console.WriteLine("  [geo] subtract channels...");
-        voxEngine.BoolSubtract(voxChannels);
-        Console.WriteLine("  [geo] injector assembly...");
-        Voxels voxInjector = voxInjectorAssembly();
-        Console.WriteLine("  [geo] add injector...");
-        voxEngine.BoolAdd(voxInjector);
+        voxBody.BoolSubtract(voxChannels);
+
+        InjectorDims oDims = GetInjectorDims();
+        Console.WriteLine("  [geo] injector plate...");
+        Voxels voxInjector = voxInjectorPlate(oDims);
+        Console.WriteLine("  [geo] mounting flange...");
+        Voxels voxMountFlange = voxMountingFlange(oDims);
         Console.WriteLine("  [geo] done");
+        return new EngineComponents(voxBody, voxInjector, voxMountFlange);
+    }
+
+    /// <summary>Build the complete engine. Returns the solid voxel field.</summary>
+    public Voxels voxBuild()
+    {
+        EngineComponents oParts = voxBuildComponents();
+        Voxels voxEngine = new(oParts.Body);
+        voxEngine.BoolAdd(oParts.Injector);
+        voxEngine.BoolAdd(oParts.Flange);
         return voxEngine;
     }
 
@@ -175,64 +190,91 @@ public class ThrusterBuilder
         }
     }
 
-    /// <summary>
-    /// Injector plate with showerhead orifice rings + mounting flange with bolt circle.
-    /// Sits on top of the chamber (Z &lt; 0).
-    /// </summary>
-    Voxels voxInjectorAssembly()
+    readonly record struct InjectorDims(
+        double PlateThicknessMM,
+        double ChamberOuterRadiusMM,
+        double FlangeOuterRadiusMM,
+        double FlangeHeightMM,
+        double ChamberRadiusMM);
+
+    InjectorDims GetInjectorDims()
     {
         double fRcMM = MM(m_oDesign.ChamberRadius);
-        double fPlateT = Math.Max(6.0, m_fWall * 2.0);     // plate thickness [mm]
         double fROuter = fRcMM + m_fWall;
-        double fRFlange = fROuter + 8.0;
+        return new InjectorDims(
+            Math.Max(6.0, m_fWall * 2.0),
+            fROuter,
+            fROuter + 8.0,
+            4.0,
+            fRcMM);
+    }
 
+    /// <summary>Showerhead injector plate (orifices only — no flange ring or bolt holes).</summary>
+    Voxels voxInjectorPlate(InjectorDims oDims)
+    {
         Lattice latPlate = new(m_lib);
-
-        // Plate disc covering the full chamber bore
         latPlate.AddBeam(
-            new Vector3(0, 0, (float)-fPlateT),
-            new Vector3(0, 0, 0.5f),                        // tiny overlap into the chamber wall
-            (float)fROuter, (float)fROuter, bRoundCap: false);
-
-        // Flange ring with extra radius for bolts
-        latPlate.AddBeam(
-            new Vector3(0, 0, (float)-fPlateT),
-            new Vector3(0, 0, (float)(-fPlateT + 4.0)),
-            (float)fRFlange, (float)fRFlange, bRoundCap: false);
+            new Vector3(0, 0, (float)-oDims.PlateThicknessMM),
+            new Vector3(0, 0, 0.5f),
+            (float)oDims.ChamberOuterRadiusMM,
+            (float)oDims.ChamberOuterRadiusMM,
+            bRoundCap: false);
 
         Voxels voxPlate = new(latPlate);
-
-        // --- Negative features --------------------------------------------------
         Lattice latHoles = new(m_lib);
 
-        // Showerhead orifice rings: fuel outer ring, oxidizer inner ring(s)
         AddOrificeRing(latHoles, m_oDesign.FuelOrificeCount,
-                       m_oDesign.FuelOrificeDiameter, 0.72 * fRcMM, fPlateT);
+            m_oDesign.FuelOrificeDiameter, 0.72 * oDims.ChamberRadiusMM, oDims.PlateThicknessMM);
         AddOrificeRing(latHoles, m_oDesign.OxOrificeCount,
-                       m_oDesign.OxOrificeDiameter, 0.42 * fRcMM, fPlateT);
+            m_oDesign.OxOrificeDiameter, 0.42 * oDims.ChamberRadiusMM, oDims.PlateThicknessMM);
 
-        // Central igniter port
         latHoles.AddBeam(
-            new Vector3(0, 0, (float)(-fPlateT - 1)),
+            new Vector3(0, 0, (float)(-oDims.PlateThicknessMM - 1)),
             new Vector3(0, 0, 2),
             1.5f, 1.5f, bRoundCap: false);
 
-        // Bolt circle on the flange
+        voxPlate.BoolSubtract(new Voxels(latHoles));
+        return voxPlate;
+    }
+
+    /// <summary>Bolted mounting flange (annular ring with clearance holes).</summary>
+    Voxels voxMountingFlange(InjectorDims oDims)
+    {
+        Lattice latFlange = new(m_lib);
+        latFlange.AddBeam(
+            new Vector3(0, 0, (float)-oDims.PlateThicknessMM),
+            new Vector3(0, 0, (float)(-oDims.PlateThicknessMM + oDims.FlangeHeightMM)),
+            (float)oDims.FlangeOuterRadiusMM,
+            (float)oDims.FlangeOuterRadiusMM,
+            bRoundCap: false);
+
+        Voxels voxFlange = new(latFlange);
+
+        Lattice latBore = new(m_lib);
+        latBore.AddBeam(
+            new Vector3(0, 0, (float)(-oDims.PlateThicknessMM - 1)),
+            new Vector3(0, 0, 1),
+            (float)oDims.ChamberOuterRadiusMM,
+            (float)oDims.ChamberOuterRadiusMM,
+            bRoundCap: false);
+        voxFlange.BoolSubtract(new Voxels(latBore));
+
+        Lattice latBolts = new(m_lib);
         const int nBolts = 8;
-        double fRBoltCircle = fROuter + 4.0;
+        double fRBoltCircle = oDims.ChamberOuterRadiusMM + 4.0;
         for (int i = 0; i < nBolts; i++)
         {
             double fA = 2.0 * Math.PI * i / nBolts;
             float fX = (float)(fRBoltCircle * Math.Cos(fA));
             float fY = (float)(fRBoltCircle * Math.Sin(fA));
-            latHoles.AddBeam(
-                new Vector3(fX, fY, (float)(-fPlateT - 1)),
+            latBolts.AddBeam(
+                new Vector3(fX, fY, (float)(-oDims.PlateThicknessMM - 1)),
                 new Vector3(fX, fY, 1),
-                2.1f, 2.1f, bRoundCap: false);            // M4 clearance
+                2.1f, 2.1f, bRoundCap: false);
         }
 
-        voxPlate.BoolSubtract(new Voxels(latHoles));
-        return voxPlate;
+        voxFlange.BoolSubtract(new Voxels(latBolts));
+        return voxFlange;
     }
 
     void AddOrificeRing(Lattice lat, int nCount, double fDiaM, double fRingRMM, double fPlateT)
