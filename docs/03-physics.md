@@ -211,9 +211,13 @@ Total load integrates strip-wise over the revolved wall surface
 
 ### First-order regenerative cooling balance
 
-All heat is dumped into the fuel flow (standard regen assumption):
+A screening fraction of integrated wall heat is assumed to enter the fuel
+coolant (15% in v1 — uncooled injector face, flange, radiation; replaced by the
+1D regen solver in roadmap §8.3):
 
-\[ \Delta T_{coolant} = \frac{Q}{\dot m_f\,c_{p,fuel}} \]
+\[ \Delta T_{coolant} = \eta_{pickup}\,\frac{Q}{\dot m_f\,c_{p,fuel}} \]
+
+with \(\eta_{pickup} = 0.15\) in `ThermalModel.cs`.
 
 Channel bulk velocity (sanity check against erosion/stagnation limits —
 roughly 10–50 m/s is healthy for kerosene):

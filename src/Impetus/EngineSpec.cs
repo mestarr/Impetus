@@ -53,6 +53,9 @@ public record EngineSpec
     /// <summary>Voxel resolution for geometry generation [mm]. Smaller = finer + slower.</summary>
     public double VoxelSizeMM { get; init; } = 0.4;
 
+    /// <summary>Printer bed size [mm] for bed-fit checks in the print report. 0 = 250 mm default.</summary>
+    public double PrinterBedMM { get; init; } = 250;
+
     private static readonly JsonSerializerOptions s_oJsonOptions = new()
     {
         PropertyNameCaseInsensitive = true,
