@@ -10,24 +10,80 @@ namespace Impetus.Geometry;
 /// Export PicoGK meshes to interchange formats. PicoGK only writes STL; 3MF is
 /// built here so slicers (e.g. Anycubic Kobra S1) get explicit millimeter units.
 /// </summary>
-static class MeshExport
+public static class MeshExport
 {
+    public readonly record struct ThreeMfPart(string Name, Mesh Mesh);
+
     public static void SaveMeshFiles(Mesh msh, string strStlPath, string strThreeMfPath, string strTitle)
     {
         msh.SaveToStlFile(strStlPath);
-        SaveToThreeMfFile(msh, strThreeMfPath, strTitle);
+        SaveToThreeMfFile(strThreeMfPath, strTitle, new ThreeMfPart(strTitle, msh));
+    }
+
+    public static void SaveAssemblyMeshFiles(
+        Mesh mshCombined,
+        IReadOnlyList<ThreeMfPart> aoParts,
+        string strStlPath,
+        string strThreeMfPath,
+        string strTitle)
+    {
+        mshCombined.SaveToStlFile(strStlPath);
+        SaveToThreeMfFile(strThreeMfPath, strTitle, aoParts);
     }
 
     public static void SaveToThreeMfFile(Mesh msh, string strPath, string strTitle)
+        => SaveToThreeMfFile(strPath, strTitle, new ThreeMfPart(strTitle, msh));
+
+    public static void SaveToThreeMfFile(string strPath, string strTitle, params ThreeMfPart[] aoParts)
+        => SaveToThreeMfFile(strPath, strTitle, (IReadOnlyList<ThreeMfPart>)aoParts);
+
+    public static void SaveToThreeMfFile(string strPath, string strTitle, IReadOnlyList<ThreeMfPart> aoParts)
+    {
+        if (aoParts.Count == 0)
+            throw new ArgumentException("At least one 3MF part is required.", nameof(aoParts));
+
+        WriteThreeMfArchive(strPath, BuildModelXml(strTitle, aoParts));
+    }
+
+    static string BuildModelXml(string strTitle, IReadOnlyList<ThreeMfPart> aoParts)
+    {
+        var sb = new StringBuilder(4096);
+        sb.Append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
+        sb.Append("<model unit=\"millimeter\" xml:lang=\"und-US\" xmlns=\"http://schemas.microsoft.com/3dmanufacturing/core/2015/02\" xmlns:m=\"http://schemas.microsoft.com/3dmanufacturing/material/2015/02\">");
+
+        string strNow = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ", CultureInfo.InvariantCulture);
+        sb.Append("<metadata name=\"Title\">").Append(EscapeXml(strTitle)).Append("</metadata>");
+        sb.Append("<metadata name=\"Application\">Impetus computational thruster design</metadata>");
+        sb.Append("<metadata name=\"CreationDate\">").Append(strNow).Append("</metadata>");
+        sb.Append("<metadata name=\"Designer\">Impetus</metadata>");
+        sb.Append("<metadata name=\"Description\">Rocket engine display geometry; units millimeters; not for hot fire in plastic.</metadata>");
+
+        sb.Append("<resources>");
+        for (int i = 0; i < aoParts.Count; i++)
+        {
+            int nId = i + 1;
+            ThreeMfPart oPart = aoParts[i];
+            sb.Append("<object id=\"").Append(nId).Append("\" type=\"model\" name=\"")
+                .Append(EscapeXml(oPart.Name)).Append("\"><mesh><vertices>");
+            AppendVertices(sb, oPart.Mesh);
+            sb.Append("</vertices><triangles>");
+            AppendTriangles(sb, oPart.Mesh);
+            sb.Append("</triangles></mesh></object>");
+        }
+        sb.Append("</resources><build>");
+        for (int i = 0; i < aoParts.Count; i++)
+            sb.Append("<item objectid=\"").Append(i + 1).Append("\"/>");
+        sb.Append("</build></model>");
+        return sb.ToString();
+    }
+
+    static void AppendVertices(StringBuilder sb, Mesh msh)
     {
         int nVerts = msh.nVertexCount();
-        int nTris = msh.nTriangleCount();
-
-        var sbVerts = new StringBuilder(nVerts * 48);
         for (int i = 0; i < nVerts; i++)
         {
             Vector3 vec = msh.vecVertexAt(i);
-            sbVerts.Append("<vertex x=\"")
+            sb.Append("<vertex x=\"")
                 .Append(vec.X.ToString("G9", CultureInfo.InvariantCulture))
                 .Append("\" y=\"")
                 .Append(vec.Y.ToString("G9", CultureInfo.InvariantCulture))
@@ -35,12 +91,15 @@ static class MeshExport
                 .Append(vec.Z.ToString("G9", CultureInfo.InvariantCulture))
                 .Append("\"/>");
         }
+    }
 
-        var sbTris = new StringBuilder(nTris * 32);
+    static void AppendTriangles(StringBuilder sb, Mesh msh)
+    {
+        int nTris = msh.nTriangleCount();
         for (int i = 0; i < nTris; i++)
         {
             Triangle tri = msh.oTriangleAt(i);
-            sbTris.Append("<triangle v1=\"")
+            sb.Append("<triangle v1=\"")
                 .Append(tri.A)
                 .Append("\" v2=\"")
                 .Append(tri.B)
@@ -48,25 +107,6 @@ static class MeshExport
                 .Append(tri.C)
                 .Append("\"/>");
         }
-
-        WriteThreeMfArchive(strPath, BuildModelXml(strTitle, sbVerts.ToString(), sbTris.ToString()));
-    }
-
-    static string BuildModelXml(string strTitle, string strVertices, string strTriangles)
-    {
-        var sb = new StringBuilder(strVertices.Length + strTriangles.Length + 1024);
-        sb.Append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
-        sb.Append("<model unit=\"millimeter\" xml:lang=\"und-US\" xmlns=\"http://schemas.microsoft.com/3dmanufacturing/core/2015/02\" xmlns:m=\"http://schemas.microsoft.com/3dmanufacturing/material/2015/02\">");
-        sb.Append("<metadata name=\"Title\">").Append(EscapeXml(strTitle)).Append("</metadata>");
-        sb.Append("<metadata name=\"Application\">Impetus computational thruster design</metadata>");
-        sb.Append("<resources><object id=\"1\" type=\"model\"><mesh><vertices>");
-        sb.Append(strVertices);
-        sb.Append("</vertices><triangles>");
-        sb.Append(strTriangles);
-        sb.Append("</triangles></mesh></object></resources>");
-        sb.Append("<build><item objectid=\"1\"/></build>");
-        sb.Append("</model>");
-        return sb.ToString();
     }
 
     static string EscapeXml(string str)

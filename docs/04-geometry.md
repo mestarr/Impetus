@@ -130,11 +130,21 @@ manifolds.
 
 | Mode | PicoGK entry | What happens |
 |---|---|---|
-| `design` / `all` | `new Library(voxelSize)` (headless) | build voxels → `mshAsMesh().SaveToStlFile()` → `engine.stl`, `engine_cutaway.stl` |
+| `design` / `all` | `new Library(voxelSize)` (headless) | build voxels → `MeshExport` → `engine.stl`, `engine.3mf`, cutaway pair |
+| `print` | none | sizing + validation + FDM print section in `report.md` (no geometry) |
 | `view` | `Library.Go(voxelSize, task)` | opens PicoGK's interactive viewer, shows the cutaway with a copper-like material |
 
-STLs are written in millimeters (PicoGK native), the unit every slicer
-assumes by default.
+### MeshExport (`Geometry/MeshExport.cs`)
+
+PicoGK writes STL natively; Impetus adds **3MF** export with explicit
+`unit="millimeter"` metadata (title, creation date, application). Both formats
+are written on every `design` / `all` run:
+
+- `engine.stl` — full engine (single combined mesh)
+- `engine.3mf` — same assembly as three named objects: `body`, `injector`, `flange`
+- `engine_cutaway.stl` / `engine_cutaway.3mf` — y &lt; 0 half removed (3MF also split into three parts)
+
+STLs and 3MFs use millimeters — the unit every slicer expects.
 
 ## 4.7 Resolution guidance
 

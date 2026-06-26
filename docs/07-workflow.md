@@ -25,6 +25,9 @@ dotnet run --project src/Impetus -- design specs/demo-1kN.json
 # Virtual test only (writes + runs the SU2 case):
 dotnet run --project src/Impetus -- test specs/demo-1kN.json
 
+# FDM / slicer summary without geometry (fast):
+dotnet run --project src/Impetus -- print specs/demo-1kN.json
+
 # Interactive 3D inspection (PicoGK viewer, shows the cutaway):
 dotnet run --project src/Impetus -- view specs/demo-1kN.json
 ```
