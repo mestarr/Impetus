@@ -30,65 +30,44 @@ build, why, and in what order.
 
 ## Tier 1 — Quick wins (days, high value)
 
+*Status: largely shipped — see git history.*
+
 ### Demo and trust
 
-- **Fix `demo-1kN.json` so it passes its own validation gates**
-  - Current `IMP-1K-A` fails coolant temperature rise (~656 K vs fuel limit).
-  - Run: `dotnet run --project src/Impetus -- iterate specs/demo-1kN.json`
-  - Or manually tune: `cooling.count`, `cooling.diameterMM`,
-    `chamberPressureBar`, `ofRatio`.
-  - A demo that fails its own checks undermines trust even when the code is
-    correct.
+- [x] **Demo spec passes analytic validation** — v1 thermal model uses a 15%
+  regen heat-pickup fraction so `demo-1kN.json` reaches `VIRTUAL_PARTIAL`
+  (coolant WARN, no FAILs). Full regen solver still on Tier 2 roadmap.
 
 ### Testing
 
-- **Add a unit test project** (none exists today).
-  - Golden-number tests for `EngineSizing` — fixed spec → known throat/exit/
-    chamber diameters.
-  - Tests for `IsentropicFlow`, `NozzleContour` key points.
-  - Validation gate tests — pass/fail cases for coolant ΔT, channel velocity,
-    throat flux.
-  - `MeshExport` smoke test — mesh → valid `.3mf` zip with `unit="millimeter"`.
-  - `EngineSpec` loader tests — comments, trailing commas, case insensitivity.
+- [x] **`tests/Impetus.Tests/`** — xUnit: spec loader, sizing golden numbers,
+  validation gates, print envelope, 3MF unit check.
 
-### CI (local or GitHub)
+### CI
 
-- `dotnet build` on every change.
-- `dotnet run -- smoke` — PicoGK pipeline sanity check.
-- One analytic golden test — catches .NET / PicoGK breakage early.
+- [x] **`.github/workflows/ci.yml`** — build, test, PicoGK smoke on Windows.
 
 ### 3MF / slicer polish
 
-- **Richer 3MF metadata** — title, application name, creation date, scale
-  confirmation; optional author/project notes from spec `name`.
-- **Separate 3MF components** (optional) — injector plate, chamber/nozzle body,
-  flange as separate objects for easier orientation, supports, and brim in
-  Anycubic Slicer Next.
-- **`print` command or report section** — bed fit (e.g. 250 mm Kobra S1),
-  recommended orientation (flange down, nozzle up), brim/support hints, layer
-  height / perimeters / infill starting points.
+- [x] **Richer 3MF metadata** — title, creation date, application, description.
+- [x] **Separate 3MF components** — `body`, `injector`, `flange` as named objects in
+  `engine.3mf` and `engine_cutaway.3mf` (combined STL unchanged).
+- [x] **`print` command** — fast slicer/bed-fit summary without geometry.
 
 ### FDM print helper in `report.md`
 
-- Auto-compute: overall height, max diameter, flange diameter.
-- “Fits 250 mm bed: yes/no” with margins.
-- Warn when cooling channels (Ø1.4 mm) or injector holes (Ø0.6–0.8 mm) are
-  below typical FDM nozzle (0.4 mm).
-- Suggest `voxelSizeMM: 0.2` for sharper display pieces.
-- Clear disclaimer: FDM = display model only; flight intent = metal LPBF
-  (CuCrZr / Inconel).
+- [x] **`PrintReport.cs`** — envelope, bed fit, orientation, settings, FDM vs
+  metal disclaimer (appended to every `report.md`).
 
 ### Documentation sync
 
-- Update [01-overview.md](01-overview.md) repo layout — STL **and** 3MF outputs.
-- Update [04-geometry.md](04-geometry.md) — document `MeshExport.cs` and dual
-  export.
-- Keep README output table aligned with all four geometry files.
+- [x] **01-overview, 04-geometry, 07-workflow, 03-physics** updated for STL+3MF,
+  MeshExport, print command, heat pickup.
 
 ### Code hygiene
 
-- **Split `Program.cs`** into smaller command modules (`Design`, `Test`, `View`,
-  `Iterate`, etc.) so new commands (`sweep`, `print`) do not bloat one file.
+- [x] **`Cli/ImpetusApp.cs`** — `Program.cs` is a thin entry; commands live in
+  `Cli/`.
 
 ---
 
