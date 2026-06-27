@@ -10,7 +10,8 @@ namespace Impetus.Cfd;
 /// native .su2 format, no external mesher needed) plus the solver configuration.
 ///
 /// SU2 axisymmetric convention: x = engine axis, y = radius (y >= 0).
-/// Inviscid (Euler) flow of the equilibrium combustion gas.
+/// Viscous (RANS-SST) flow of the equilibrium combustion gas with an isothermal
+/// wall at the regen-cooled liner design temperature.
 /// </summary>
 public class Su2Case
 {
@@ -22,7 +23,10 @@ public class Su2Case
 
     // Grid resolution: axial x radial cells
     const int NI = 240;
-    const int NJ = 44;
+    const int NJ = 60;
+
+    /// <summary>Radial clustering toward the wall (higher = finer near-wall cells).</summary>
+    const double WallRadialStretch = 2.8;
 
     public Su2Case(EngineDesign oDesign, NozzleContour oContour)
     {
@@ -75,6 +79,18 @@ public class Su2Case
         return afOut;
     }
 
+    /// <summary>Map radial index j in [0, NJ] to radius with wall clustering.</summary>
+    public static double RadialStation(double fWallRadius, int j, int nJ, double fStretch)
+    {
+        if (j <= 0) return 0;
+        if (j >= nJ) return fWallRadius;
+        if (fStretch < 1e-6) return fWallRadius * j / nJ;
+
+        double fEta = (double)j / nJ;
+        double fDenom = Math.Exp(fStretch) - 1.0;
+        return fWallRadius * (Math.Exp(fStretch * fEta) - 1.0) / fDenom;
+    }
+
     void WriteMesh(string strPath)
     {
         double[] afZ = AxialStations();
@@ -90,7 +106,7 @@ public class Su2Case
             double fR = m_oContour.RadiusAt(afZ[i]);
             for (int j = 0; j <= NJ; j++)
             {
-                double fY = fR * j / NJ;
+                double fY = RadialStation(fR, j, NJ, WallRadialStretch);
                 sb.Append(S(afZ[i])).Append(' ').Append(S(fY)).Append('\n');
             }
         }
@@ -142,11 +158,12 @@ public class Su2Case
     {
         CombustionGas oGas = m_oDesign.Gas;
         EngineSpec oSpec = m_oDesign.Spec;
+        double fWallT = ThermalModel.AssumedRegenWallTempK;
 
         string strCfg = $"""
             % Impetus auto-generated SU2 case: {oSpec.Name}
-            % Inviscid axisymmetric hot-gas flow, ideal-gas combustion products
-            SOLVER= EULER
+            % Axisymmetric RANS-SST hot-gas flow, ideal-gas combustion products
+            SOLVER= RANS
             MATH_PROBLEM= DIRECT
             AXISYMMETRIC= YES
             RESTART_SOL= NO
@@ -154,9 +171,14 @@ public class Su2Case
             FLUID_MODEL= IDEAL_GAS
             GAMMA_VALUE= {S(oGas.Gamma)}
             GAS_CONSTANT= {S(oGas.Rs)}
+            VISCOSAL_MODEL= SUTHERLAND
+            REF_DIMENSIONALIZATION= DIMENSIONAL
+
+            KIND_TURB_MODEL= SST
+            FREESTREAM_TURBULENCEINTENSITY= 0.05
+            FREESTREAM_TURB2VISC_RATIO= 1.0
 
             % Dimensional setup; freestream values only initialize the field
-            REF_DIMENSIONALIZATION= DIMENSIONAL
             MACH_NUMBER= 0.05
             FREESTREAM_OPTION= TEMPERATURE_FS
             FREESTREAM_PRESSURE= {S(oSpec.Pc)}
@@ -167,36 +189,39 @@ public class Su2Case
             INLET_TYPE= TOTAL_CONDITIONS
             MARKER_INLET= ( inlet, {S(oGas.Tc)}, {S(oSpec.Pc)}, 1.0, 0.0, 0.0 )
             MARKER_OUTLET= ( outlet, {S(oSpec.Pa)} )
-            MARKER_EULER= ( wall )
+            MARKER_ISOTHERMAL= ( wall, {S(fWallT)} )
             MARKER_SYM= ( axis )
-            MARKER_PLOTTING= ( outlet )
+            MARKER_PLOTTING= ( outlet, wall )
             MARKER_MONITORING= ( wall )
             MARKER_ANALYZE= ( outlet )
             MARKER_ANALYZE_AVERAGE= AREA
 
-            % Numerics
+            % Numerics (RANS: upwind + implicit, conservative CFL ramp)
             NUM_METHOD_GRAD= GREEN_GAUSS
-            CONV_NUM_METHOD_FLOW= JST
-            JST_SENSOR_COEFF= ( 0.5, 0.02 )
+            CONV_NUM_METHOD_FLOW= ROE
+            MUSCL_FLOW= YES
+            SLOPE_LIMITER_FLOW= VENKATAKRISHNAN
+            SLOPE_LIMITER_COEFF= 0.5
             TIME_DISCRE_FLOW= EULER_IMPLICIT
-            CFL_NUMBER= 0.5
+            TIME_DISCRE_TURB= EULER_IMPLICIT
+            CFL_NUMBER= 0.25
             CFL_ADAPT= YES
-            CFL_ADAPT_PARAM= ( 0.5, 1.02, 0.1, 25.0 )
+            CFL_ADAPT_PARAM= ( 0.25, 1.02, 0.1, 10.0 )
             LINEAR_SOLVER= FGMRES
             LINEAR_SOLVER_PREC= ILU
             LINEAR_SOLVER_ERROR= 1E-4
-            LINEAR_SOLVER_ITER= 10
+            LINEAR_SOLVER_ITER= 15
 
             % Convergence
-            ITER= 8000
+            ITER= 12000
             CONV_FIELD= RMS_DENSITY
-            CONV_RESIDUAL_MINVAL= -9
+            CONV_RESIDUAL_MINVAL= -8
             CONV_STARTITER= 200
 
             % I/O
             MESH_FILENAME= {MeshFile}
             MESH_FORMAT= SU2
-            SCREEN_OUTPUT= ( INNER_ITER, RMS_DENSITY, RMS_ENERGY, AVG_MACH )
+            SCREEN_OUTPUT= ( INNER_ITER, RMS_DENSITY, RMS_MOMENTUM-X, RMS_ENERGY, RMS_K, RMS_OMEGA )
             SCREEN_WRT_FREQ_INNER= 200
             HISTORY_OUTPUT= ( ITER, RMS_RES, FLOW_COEFF )
             OUTPUT_FILES= ( RESTART, PARAVIEW, SURFACE_CSV )

@@ -44,7 +44,7 @@ recipe — built on the same open-source geometry kernel LEAP 71 publishes
                ▼               ▼
    ┌───────────────────┐   ┌──────────────────────┐
    │ GEOMETRY (PicoGK) │   │ VIRTUAL TEST (SU2)   │
-   │ voxel engine      │   │ axisym. Euler CFD    │
+   │ voxel engine      │   │ axisym. RANS-SST CFD │
    │ → engine.stl      │   │ → thrust, Mach, p    │
    │ → cutaway.stl     │   │ → flow.vtu (ParaView)│
    └─────────┬─────────┘   └──────────┬───────────┘
@@ -69,7 +69,7 @@ you interpret the report, adjust the spec, and converge.
 | Generate manufacturable voxel geometry with regen cooling channels | Validate printability (overhangs, min wall checks) |
 | Predict Isp, c*, CF, mass flows from ideal rocket theory | Full NASA-CEA chemical equilibrium (uses textbook gas tables) |
 | Estimate wall heat flux (Bartz) and coolant temperature rise | Conjugate heat transfer / detailed channel hydraulics |
-| Run a real compressible CFD of the hot-gas path and integrate thrust | Combustion simulation, viscous boundary layers (Euler only in v1) |
+| Run a real compressible CFD of the hot-gas path and integrate thrust | Combustion simulation, conjugate cooling (RANS-SST + isothermal wall in v1) |
 | Produce a traceable engineering report | Optimize automatically (no search loop yet) |
 
 Every limitation above is a deliberate v1 scope cut, listed with the upgrade

@@ -246,7 +246,7 @@ public static class VirtualValidation
                 "None.");
         if (fDevThrust <= 10.0 && fDevMdot <= 10.0)
             return new("CFD vs analytic", CheckStatus.Warn,
-                $"Thrust {fDevThrust:F1}% / mass flow {fDevMdot:F1}% deviation — acceptable for v1 Euler CFD.",
+                $"Thrust {fDevThrust:F1}% / mass flow {fDevMdot:F1}% deviation — acceptable for RANS (viscous losses).",
                 "Investigate mesh or spec if deviation grows on iteration.");
         return new("CFD vs analytic", CheckStatus.Fail,
             $"Thrust {fDevThrust:F1}% / mass flow {fDevMdot:F1}% deviation — analytic and CFD disagree.",
