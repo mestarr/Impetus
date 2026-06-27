@@ -80,17 +80,18 @@ public static class DesignReport
         return sb.ToString();
     }
 
-    public static string CfdSection(EngineDesign o, CfdResult oCfd)
+    public static string CfdSection(EngineDesign o, CfdResult oCfd, ThermalResult? oTherm = null)
     {
         StringBuilder sb = new();
         double fDevThrust = 100.0 * (oCfd.ThrustN - o.Spec.ThrustN) / o.Spec.ThrustN;
         double fDevMdot = 100.0 * (oCfd.MassFlow - o.MassFlow) / o.MassFlow;
         double fDevMach = 100.0 * (oCfd.ExitMachAvg - o.ExitMach) / o.ExitMach;
 
-        sb.AppendLine("## Virtual test (SU2 CFD, axisymmetric Euler)");
+        sb.AppendLine("## Virtual test (SU2 CFD, axisymmetric RANS-SST)");
         sb.AppendLine();
         sb.AppendLine($"Converged: {(oCfd.Converged ? "yes" : "no (check su2.log)")}, " +
-                      $"iterations: {oCfd.Iterations}");
+                      $"iterations: {oCfd.Iterations}. " +
+                      $"Wall BC: isothermal {ThermalModel.AssumedRegenWallTempK:F0} K.");
         sb.AppendLine();
         sb.AppendLine($"| Quantity | Analytic | CFD | Deviation |");
         sb.AppendLine($"|---|---|---|---|");
@@ -98,9 +99,21 @@ public static class DesignReport
         sb.AppendLine($"| Mass flow | {F(o.MassFlow, "F3")} kg/s | {F(oCfd.MassFlow, "F3")} kg/s | {F(fDevMdot, "+0.0;-0.0")}% |");
         sb.AppendLine($"| Exit Mach (area avg) | {F(o.ExitMach, "F2")} | {F(oCfd.ExitMachAvg, "F2")} | {F(fDevMach, "+0.0;-0.0")}% |");
         sb.AppendLine($"| Exit pressure (area avg) | {F(o.ExitPressure / 1e5, "F3")} bar | {F(oCfd.ExitPressureAvg / 1e5, "F3")} bar | |");
+
+        if (oTherm is not null && oCfd.ThroatWallHeatFluxMWm2 is double fQcfd)
+        {
+            double fQBartz = oTherm.ThroatHeatFlux / 1e6;
+            double fDevQ = 100.0 * (fQcfd - fQBartz) / Math.Max(fQBartz, 1e-12);
+            sb.AppendLine($"| Throat wall heat flux | {F(fQBartz, "F1")} MW/m2 (Bartz) | {F(fQcfd, "F1")} MW/m2 | {F(fDevQ, "+0.0;-0.0")}% |");
+        }
+        else if (oTherm is not null)
+        {
+            sb.AppendLine($"| Throat wall heat flux (Bartz) | {F(oTherm.ThroatHeatFlux / 1e6, "F1")} MW/m2 | (not in surface CSV) | |");
+        }
+
         sb.AppendLine();
         sb.AppendLine("Flow field: open `cfd/flow.vtu` in ParaView. " +
-                      "Solver log: `cfd/su2.log`.");
+                      "Solver log: `cfd/su2.log`. Wall heat flux from `surface_flow.csv` when present.");
         sb.AppendLine();
         return sb.ToString();
     }

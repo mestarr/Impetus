@@ -26,10 +26,11 @@ spec.json ──► sizing physics ──► geometry (PicoGK) ──► STL / 3
    nozzle with helical cooling channels, manifolds, showerhead injector plate
    and bolted flange. Output: printable STL + cutaway STL.
 4. **Virtual test** - a structured 2D axisymmetric mesh of the hot-gas path is
-   written directly in SU2 format (no external mesher), SU2 solves the
-   compressible Euler equations with the combustion-gas properties, and the
-   exit plane is integrated to get CFD thrust / mass flow / exit Mach -
-   compared side-by-side against the analytic prediction in the report.
+   written directly in SU2 format (no external mesher), SU2 solves **RANS-SST**
+   with an isothermal wall and wall-clustered mesh, and the exit plane is
+   integrated to get CFD thrust / mass flow / exit Mach — compared side-by-side
+   against the analytic prediction (and throat wall heat flux vs Bartz) in the
+   report.
 5. **Iterate** - change the spec, run again. Generation takes seconds,
    the CFD a few minutes.
 
@@ -200,8 +201,9 @@ Detailed engineering documentation lives in [`docs/`](docs/01-overview.md):
 
 - Combustion gas properties are representative textbook values per propellant
   pair, not a full NASA-CEA equilibrium calculation.
-- The CFD is inviscid (Euler) single-species hot gas: it verifies nozzle
-  aerodynamics (thrust, expansion, shocks), not combustion or cooling.
+- The CFD is **RANS-SST** axisymmetric with an isothermal wall: it verifies nozzle
+  aerodynamics and reports throat wall heat flux vs Bartz, not conjugate cooling
+  or combustion in the chamber.
 - Bartz + first-order coolant balance is a sizing estimate, not a conjugate
   heat transfer simulation.
 - Injector is a geometric showerhead pattern with orifice-area sizing only.

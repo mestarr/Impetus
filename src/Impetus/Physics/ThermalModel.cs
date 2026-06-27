@@ -19,7 +19,10 @@ public record ThermalResult
 /// </summary>
 public static class ThermalModel
 {
-    const double fWallTempK = 800.0; // typical regen-cooled copper liner design point
+    /// <summary>Regen-cooled liner design-point wall temperature used by Bartz and CFD wall BC.</summary>
+    public const double AssumedRegenWallTempK = 800.0;
+
+    const double fWallTempK = AssumedRegenWallTempK;
 
     public static ThermalResult Evaluate(EngineDesign oDesign, NozzleContour oContour)
     {
