@@ -77,15 +77,10 @@ build, why, and in what order.
 
 ### 1. RANS CFD instead of Euler
 
-- **Now:** axisymmetric Euler, inviscid, single-species hot gas (`Su2Case.cs`).
-- **Missing:** boundary-layer losses, wall heat flux from CFD, viscous separation
-  in over-expanded bells.
-- **Upgrade:**
-  - Generated config: `SOLVER= RANS`, `KIND_TURB_MODEL= SST`.
-  - Wall markers: `MARKER_HEATFLUX` or isothermal wall.
-  - Mesh clustering toward the wall (geometric stretching in mesh writer).
-- **Benefit:** CFD thrust and wall flux compare better to analytic Bartz; more
-  credible virtual test.
+- [x] **Shipped:** `SOLVER= RANS`, `KIND_TURB_MODEL= SST`, `MARKER_ISOTHERMAL`
+  wall at 800 K, ROE + MUSCL, radial wall clustering (NJ=60, stretch β≈2.8).
+  Post-processing compares throat wall heat flux vs Bartz when SU2 writes
+  `Heat_Flux` to `surface_flow.csv`.
 
 ### 2. 1D regenerative cooling solver
 
@@ -221,7 +216,7 @@ build, why, and in what order.
 ## Known v1 limitations (baseline)
 
 - Textbook gas tables, not full CEA equilibrium.
-- Euler CFD — nozzle aerodynamics only, not combustion or cooling in CFD.
+- RANS-SST CFD — nozzle aerodynamics + throat wall flux vs Bartz; not combustion or conjugate cooling in CFD.
 - Bartz + lumped coolant balance — not conjugate heat transfer.
 - Showerhead injector — geometry only; stability screening only.
 - No automatic printability validation in geometry yet.
