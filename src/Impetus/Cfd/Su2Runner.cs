@@ -12,6 +12,9 @@ public record CfdResult
     public required double ExitMachAvg { get; init; }
     public required double ExitPressureAvg { get; init; }
     public required int Iterations { get; init; }
+
+    /// <summary>Area-averaged wall heat flux near the throat from RANS [MW/m²], if available.</summary>
+    public double? ThroatWallHeatFluxMWm2 { get; init; }
 }
 
 /// <summary>
@@ -115,20 +118,40 @@ public static class Su2Runner
 
         // SU2's surface CSV carries the conservative variables; primitives
         // (p, M) are derived below via the ideal-gas relations.
+        int iX = Col(astrHeader, "x");
         int iY = Col(astrHeader, "y");
         int iRho = Col(astrHeader, "Density");
         int iMomX = Col(astrHeader, "Momentum_x");
         int iMomY = Col(astrHeader, "Momentum_y");
         int iE = Col(astrHeader, "Energy");
+        int iHeatFlux = TryCol(astrHeader, "Heat_Flux", "HEAT_FLUX", "HeatFlux");
 
         double fGamma = oDesign.Gas.Gamma;
+        NozzleContour oContour = new(oDesign);
+        double fExitZ = oContour.ExitZ;
+        double fExitR = oContour.RadiusAt(fExitZ);
+        double fThroatZ = oContour.ThroatZ;
+        double fThroatBand = 0.25 * oDesign.ThroatRadius;
 
-        // Rows: [r, rho, rho*u, p, M] - all plotted points are outlet nodes
-        List<double[]> aoRows = [];
+        // Rows: outlet [r, rho, rho*u, p, M] or wall [x, y, heat flux, ...]
+        List<double[]> aoOutlet = [];
+        List<double> afThroatFlux = [];
         for (int i = 1; i < astrLines.Length; i++)
         {
             if (string.IsNullOrWhiteSpace(astrLines[i])) continue;
             string[] astr = SplitCsv(astrLines[i]);
+
+            double fX = D(astr[iX]);
+            double fY = D(astr[iY]);
+            double fRWall = oContour.RadiusAt(fX);
+            bool bOnWall = Math.Abs(fY - fRWall) <= 0.03 * Math.Max(fRWall, 1e-6);
+            bool bOnOutlet = fX >= fExitZ * 0.995 && fY <= fExitR * 1.02;
+
+            if (bOnWall && iHeatFlux >= 0 && Math.Abs(fX - fThroatZ) <= fThroatBand)
+                afThroatFlux.Add(Math.Abs(D(astr[iHeatFlux])));
+
+            if (!bOnOutlet || bOnWall)
+                continue;
 
             double fRho = D(astr[iRho]);
             double fMomX = D(astr[iMomX]);
@@ -140,17 +163,17 @@ public static class Su2Runner
             double fA = Math.Sqrt(fGamma * fP / fRho);
             double fM = Math.Sqrt(fMomX * fMomX + fMomY * fMomY) / fRho / fA;
 
-            aoRows.Add([D(astr[iY]), fRho, fMomX, fP, fM]);
+            aoOutlet.Add([fY, fRho, fMomX, fP, fM]);
         }
-        aoRows.Sort((a, b) => a[0].CompareTo(b[0]));
+        aoOutlet.Sort((a, b) => a[0].CompareTo(b[0]));
 
         double fPa = oDesign.Spec.Pa;
         double fThrust = 0, fMdot = 0, fMachSum = 0, fPSum = 0, fArea = 0;
 
-        for (int i = 1; i < aoRows.Count; i++)
+        for (int i = 1; i < aoOutlet.Count; i++)
         {
-            double[] a = aoRows[i - 1];
-            double[] b = aoRows[i];
+            double[] a = aoOutlet[i - 1];
+            double[] b = aoOutlet[i];
             double fDr = b[0] - a[0];
             if (fDr <= 0) continue;
             double fRMid = 0.5 * (a[0] + b[0]);
@@ -164,6 +187,9 @@ public static class Su2Runner
         }
 
         bool bConverged = ReadConvergence(strCaseDir, out int nIter);
+        double? fThroatFlux = afThroatFlux.Count > 0
+            ? afThroatFlux.Average() / 1e6
+            : null;
 
         return new CfdResult
         {
@@ -172,7 +198,8 @@ public static class Su2Runner
             MassFlow = fMdot,
             ExitMachAvg = fMachSum / Math.Max(fArea, 1e-12),
             ExitPressureAvg = fPSum / Math.Max(fArea, 1e-12),
-            Iterations = nIter
+            Iterations = nIter,
+            ThroatWallHeatFluxMWm2 = fThroatFlux
         };
 
         static double MomentumFlux(double[] afRow, double fPa)
@@ -214,14 +241,28 @@ public static class Su2Runner
 
     static int Col(string[] astrHeader, string strName)
     {
+        int i = TryCol(astrHeader, strName);
+        if (i < 0)
+            throw new InvalidDataException($"Column '{strName}' not in SU2 surface CSV");
+        return i;
+    }
+
+    static int TryCol(string[] astrHeader, params string[] astrNames)
+    {
         for (int i = 0; i < astrHeader.Length; i++)
         {
             string h = astrHeader[i].Trim('"', ' ');
-            if (h.Equals(strName, StringComparison.OrdinalIgnoreCase))
-                return i;
+            foreach (string strName in astrNames)
+            {
+                if (h.Equals(strName, StringComparison.OrdinalIgnoreCase))
+                    return i;
+            }
         }
-        throw new InvalidDataException($"Column '{strName}' not in SU2 surface CSV");
+        return -1;
     }
+
+    static int TryCol(string[] astrHeader, string strName)
+        => TryCol(astrHeader, [strName]);
 
     static double D(string str) => double.Parse(str.Trim('"'), CultureInfo.InvariantCulture);
 }

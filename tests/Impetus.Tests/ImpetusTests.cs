@@ -1,6 +1,7 @@
 using System.IO.Compression;
 using System.Text;
 using Impetus;
+using Impetus.Cfd;
 using Impetus.Geometry;
 using Impetus.Physics;
 using Impetus.Reporting;
@@ -8,6 +9,41 @@ using PicoGK;
 using Xunit;
 
 namespace Impetus.Tests;
+
+public class Su2CaseTests
+{
+    [Fact]
+    public void Config_UsesRansSstAndIsothermalWall()
+    {
+        EngineSpec oSpec = EngineSpec.Load(Path.Combine(TestPaths.Root(), "specs", "demo-1kN.json"));
+        EngineDesign oDesign = EngineSizing.Size(oSpec);
+        NozzleContour oContour = new(oDesign);
+
+        string strDir = Path.Combine(Path.GetTempPath(), $"impetus-su2-{Guid.NewGuid():N}");
+        new Su2Case(oDesign, oContour).Write(strDir);
+        string strCfg = File.ReadAllText(Path.Combine(strDir, "engine.cfg"));
+
+        Assert.Contains("SOLVER= RANS", strCfg, StringComparison.Ordinal);
+        Assert.Contains("KIND_TURB_MODEL= SST", strCfg, StringComparison.Ordinal);
+        Assert.Contains($"MARKER_ISOTHERMAL= ( wall, {ThermalModel.AssumedRegenWallTempK}", strCfg, StringComparison.Ordinal);
+        Assert.Contains("CONV_NUM_METHOD_FLOW= ROE", strCfg, StringComparison.Ordinal);
+        Assert.DoesNotContain("MARKER_EULER", strCfg, StringComparison.Ordinal);
+        Assert.DoesNotContain("SOLVER= EULER", strCfg, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Mesh_RadialClustering_PacksCellsNearWall()
+    {
+        double fR = 0.02;
+        double fInner = Su2Case.RadialStation(fR, 1, 60, 2.8);
+        double fOuter = Su2Case.RadialStation(fR, 59, 60, 2.8);
+        double fDeltaInner = fInner;
+        double fDeltaOuter = fR - fOuter;
+
+        Assert.True(fDeltaInner < fDeltaOuter,
+            $"Inner cell {fDeltaInner:G6} m should be smaller than outer cell {fDeltaOuter:G6} m");
+    }
+}
 
 public class EngineSpecTests
 {
