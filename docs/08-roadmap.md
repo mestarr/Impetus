@@ -16,18 +16,15 @@ which is why the architecture looks the way it does).
   `CombustionGas` is already the single seam: swap the static table for an
   interpolator, nothing else changes.
 
-## 8.2 CFD: inviscid single-species
+## 8.2 CFD: RANS-SST with isothermal wall
 
-- **Now:** axisymmetric Euler with the chamber-condition ideal gas
-  (`Su2Case.cs`).
-- **Consequence:** no boundary-layer losses (<1 % thrust at this scale), no
-  wall heat flux from CFD, no separation prediction in heavily over-expanded
-  bells (the shock shows up, but the separation point needs viscosity).
-- **Upgrade:** flip the generated config to `SOLVER= RANS`,
-  `KIND_TURB_MODEL= SST`, mark the wall `MARKER_HEATFLUX` or isothermal, and
-  add wall-normal mesh clustering (geometric stretching toward j = NJ in the
-  mesh writer — one function). SU2 then reports wall heat flux directly,
-  which can be compared against Bartz station-by-station.
+- **Now:** axisymmetric RANS-SST with chamber-condition ideal gas, isothermal
+  wall at 800 K, and radial wall clustering (`Su2Case.cs`).
+- **Consequence:** boundary-layer losses and throat wall heat flux are reported;
+  separation in over-expanded bells is still approximate (2D axisymmetric,
+  frozen γ, no conjugate cooling).
+- **Next:** `MARKER_HEATFLUX` coupling to regen solver, chemistry/frozen-γ
+  tables, or 3D sector mesh for injector effects.
 
 ## 8.3 Thermal: Bartz + single-node coolant balance
 
@@ -86,7 +83,7 @@ milestone — and the one LEAP 71 famously demonstrated.
 
 ## 8.8 Suggested order of attack
 
-1. RANS CFD switch + wall clustering (small effort, big credibility gain)
+1. ~~RANS CFD switch + wall clustering~~ (shipped)
 2. 1D regen solver (unlocks real cooling design)
 3. CEA gas tables (removes the biggest accuracy asterisk)
 4. Parameter sweep driver (turns the tool into a design-space explorer)
