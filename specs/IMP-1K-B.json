@@ -10,9 +10,10 @@
   "contractionRatio": 4,
   "wallThicknessMM": 3,
   "cooling": {
-    "count": 24,
-    "diameterMM": 1.4,
+    "count": 16,
+    "diameterMM": 1,
     "helixTurns": 1
   },
-  "voxelSizeMM": 0.4
+  "voxelSizeMM": 0.4,
+  "printerBedMM": 250
 }
