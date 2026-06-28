@@ -204,15 +204,15 @@ Detailed engineering documentation lives in [`docs/`](docs/01-overview.md):
 - The CFD is **RANS-SST** axisymmetric with an isothermal wall: it verifies nozzle
   aerodynamics and reports throat wall heat flux vs Bartz, not conjugate cooling
   or combustion in the chamber.
-- Bartz + first-order coolant balance is a sizing estimate, not a conjugate
-  heat transfer simulation.
+- Bartz + 1D regen march (`RegenSolver.cs`) — outlet ΔT, peak wall temp, channel
+  Δp; not conjugate CFD.
 - Injector is a geometric showerhead pattern with orifice-area sizing only.
 
 ## Roadmap
 
 - [ ] CEA-derived gas property tables (O/F and Pc dependent)
-- [ ] RANS (viscous) nozzle CFD + wall heat flux extraction from SU2
-- [ ] 1D regen channel solver (pressure drop, wall temperature profile)
+- [x] RANS (viscous) nozzle CFD + wall heat flux extraction from SU2
+- [x] 1D regen channel solver (pressure drop, wall temperature profile)
 - [ ] Aerospike module
 - [ ] Parameter sweeps / optimization driver ("generate 50 candidates, keep the best")
 

@@ -20,6 +20,7 @@ public class Su2Case
 
     readonly EngineDesign m_oDesign;
     readonly NozzleContour m_oContour;
+    readonly double m_fWallTempK;
 
     // Grid resolution: axial x radial cells
     const int NI = 240;
@@ -28,10 +29,12 @@ public class Su2Case
     /// <summary>Radial clustering toward the wall (higher = finer near-wall cells).</summary>
     const double WallRadialStretch = 2.8;
 
-    public Su2Case(EngineDesign oDesign, NozzleContour oContour)
+    public Su2Case(EngineDesign oDesign, NozzleContour oContour, double? fWallTempK = null)
     {
         m_oDesign = oDesign;
         m_oContour = oContour;
+        m_fWallTempK = fWallTempK
+            ?? ThermalModel.AssumedRegenWallTempK;
     }
 
     public void Write(string strCaseDir)
@@ -158,7 +161,7 @@ public class Su2Case
     {
         CombustionGas oGas = m_oDesign.Gas;
         EngineSpec oSpec = m_oDesign.Spec;
-        double fWallT = ThermalModel.AssumedRegenWallTempK;
+        double fWallT = m_fWallTempK;
 
         string strCfg = $"""
             % Impetus auto-generated SU2 case: {oSpec.Name}

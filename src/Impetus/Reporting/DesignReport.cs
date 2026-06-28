@@ -62,10 +62,13 @@ public static class DesignReport
         sb.AppendLine($"| Quantity | Value |");
         sb.AppendLine($"|---|---|");
         sb.AppendLine($"| Peak (throat) heat flux | {F(oTherm.ThroatHeatFlux / 1e6, "F1")} MW/m2 |");
-        sb.AppendLine($"| Total wall heat load | {F(oTherm.TotalHeatLoad / 1e3, "F1")} kW |");
-        sb.AppendLine($"| Assumed hot-wall temperature | {F(oTherm.AssumedWallTemp, "F0")} K |");
+        sb.AppendLine($"| Total regen heat load | {F(oTherm.TotalHeatLoad / 1e3, "F1")} kW |");
+        sb.AppendLine($"| Peak gas-side wall temperature | {F(oTherm.PeakWallTempK, "F0")} K |");
+        sb.AppendLine($"| Throat wall temperature (1D regen) | {F(oTherm.ThroatWallTempK, "F0")} K |");
+        sb.AppendLine($"| Coolant inlet / outlet | {F(oTherm.CoolantInletTempK, "F0")} / {F(oTherm.CoolantOutletTempK, "F0")} K |");
         sb.AppendLine($"| Coolant (fuel) temperature rise | {F(oTherm.CoolantTempRise, "F0")} K |");
         sb.AppendLine($"| Coolant velocity in channels | {F(oTherm.CoolantVelocity, "F1")} m/s |");
+        sb.AppendLine($"| Channel pressure drop | {F(oTherm.ChannelPressureDropPa / 1e5, "F2")} bar |");
         sb.AppendLine($"| Channels | {s.Cooling.Count} x {F(s.Cooling.DiameterMM, "F1")} mm, {F(s.Cooling.HelixTurns, "F1")} turns |");
         sb.AppendLine();
         sb.AppendLine("## Injector (showerhead)");
@@ -89,9 +92,12 @@ public static class DesignReport
 
         sb.AppendLine("## Virtual test (SU2 CFD, axisymmetric RANS-SST)");
         sb.AppendLine();
+        double fWallBc = oTherm?.ThroatWallTempK ?? oTherm?.PeakWallTempK ?? ThermalModel.AssumedRegenWallTempK;
+        if (double.IsNaN(fWallBc) || fWallBc <= 0)
+            fWallBc = ThermalModel.AssumedRegenWallTempK;
         sb.AppendLine($"Converged: {(oCfd.Converged ? "yes" : "no (check su2.log)")}, " +
                       $"iterations: {oCfd.Iterations}. " +
-                      $"Wall BC: isothermal {ThermalModel.AssumedRegenWallTempK:F0} K.");
+                      $"Wall BC: isothermal {F(fWallBc, "F0")} K (1D regen throat wall).");
         sb.AppendLine();
         sb.AppendLine($"| Quantity | Analytic | CFD | Deviation |");
         sb.AppendLine($"|---|---|---|---|");
