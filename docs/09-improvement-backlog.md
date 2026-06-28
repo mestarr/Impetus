@@ -34,9 +34,9 @@ build, why, and in what order.
 
 ### Demo and trust
 
-- [x] **Demo spec passes analytic validation** — v1 thermal model uses a 15%
-  regen heat-pickup fraction so `demo-1kN.json` reaches `VIRTUAL_PARTIAL`
-  (coolant WARN, no FAILs). Full regen solver still on Tier 2 roadmap.
+- [x] **Demo spec analytic validation** — v1 used a 15% heat-pickup hack; replaced
+  by the 1D regen solver (Tier 2). `demo-1kN.json` now reports honest coolant
+  ΔT (iterate / O/F tune expected for kerolox).
 
 ### Testing
 
@@ -84,17 +84,11 @@ build, why, and in what order.
 
 ### 2. 1D regenerative cooling solver
 
-- **Now:** Bartz hot-side flux + bulk coolant ΔT and velocity (`ThermalModel.cs`).
-- **Missing:** wall temperature profile, channel pressure drop, boiling/
-  decomposition margins; fixed 800 K wall assumption.
-- **Upgrade:**
-  - New `Physics/RegenSolver.cs` (~200 lines).
-  - March along contour from coolant inlet: Bartz → wall conduction →
-    Dittus-Boelter (or Gnielinski) on coolant side; update coolant T and p per
-    station.
-- **Benefit:** Fixes coolant ΔT failures properly; enables **auto channel
-  sizing** (count/Ø to keep wall below limit).
-- **Directly addresses** current `IMP-1K-A` validation FAIL.
+- [x] **Shipped:** `Physics/RegenSolver.cs` — march along the channel path
+  (injector → nozzle collector): Bartz → CuCrZr conduction → Gnielinski coolant
+  side; updates coolant T and p per station. Reports peak/throat wall temperature,
+  channel Δp, outlet temperature. `AutoIterate` can auto-size count/Ø for wall
+  temp; O/F for bulk ΔT. SU2 wall BC uses 1D throat wall temperature.
 
 ### 3. CEA-derived gas property tables
 

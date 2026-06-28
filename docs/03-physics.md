@@ -209,24 +209,25 @@ Total load integrates strip-wise over the revolved wall surface
 \[ Q = \sum_i q_i\,\pi(r_i + r_{i-1})
    \sqrt{\Delta z_i^2 + \Delta r_i^2} \]
 
-### First-order regenerative cooling balance
+### 1D regenerative cooling march (`RegenSolver.cs`)
 
-A screening fraction of integrated wall heat is assumed to enter the fuel
-coolant (15% in v1 — uncooled injector face, flange, radiation; replaced by the
-1D regen solver in roadmap §8.3):
+The solver walks the **channel path** (injector manifold → nozzle collector,
+matching `ThrusterBuilder` Z limits) with coupled hot-side Bartz, CuCrZr liner
+conduction, and Gnielinski tube-side convection. Coolant temperature and
+pressure are updated per segment:
 
-\[ \Delta T_{coolant} = \eta_{pickup}\,\frac{Q}{\dot m_f\,c_{p,fuel}} \]
+\[ q = \frac{T_{aw} - T_c}{1/h_g + t/k + 1/h_c}, \qquad
+   \Delta T_c = \frac{q\,\Delta A}{\dot m_f\,c_{p,fuel}} \]
 
-with \(\eta_{pickup} = 0.15\) in `ThermalModel.cs`.
+Channel friction uses Darcy–Weisbach with a Blasius-style \(f(Re)\).
 
-Channel bulk velocity (sanity check against erosion/stagnation limits —
-roughly 10–50 m/s is healthy for kerosene):
+\[ \Delta T_{coolant} = T_{c,out} - T_{c,in}, \qquad
+   v_{cool} = \frac{\dot m_f}{\rho_f\,N_{ch}\,A_{ch}} \]
 
-\[ v_{cool} = \frac{\dot m_f}{\rho_f\,N_{ch}\,A_{ch}} \]
-
-**What this is for:** catching specs that physically cannot be cooled (e.g.
-coolant ΔT > 300 K or absurd velocities) *before* you fall in love with the
-geometry. It is not a wall-temperature solver — see roadmap.
+**What this is for:** honest bulk coolant ΔT, peak wall temperature, and channel
+Δp — plus auto channel sizing (`SizeChannelsForWallTemp`) when peak wall exceeds
+the CuCrZr screening limit. Kerolox at 1 kN may still fail the fuel ΔT gate;
+run `iterate` to lower O/F or change propellant.
 
 ---
 
