@@ -26,18 +26,16 @@ which is why the architecture looks the way it does).
 - **Next:** `MARKER_HEATFLUX` coupling to regen solver, chemistry/frozen-γ
   tables, or 3D sector mesh for injector effects.
 
-## 8.3 Thermal: Bartz + single-node coolant balance
+## 8.3 Thermal: 1D regen march + Bartz hot side
 
-- **Now:** hot-side flux profile + total load + bulk coolant ΔT and velocity
-  (`ThermalModel.cs`).
-- **Consequence:** no wall temperature distribution, no channel pressure drop,
-  no boiling/decomposition margins. The 800 K wall assumption is fixed.
-- **Upgrade:** 1D marching regen solver — walk the contour from the coolant
-  inlet manifold: per station, hot-side Bartz / wall conduction / coolant-side
-  Dittus-Boelter (or Gnielinski), update coolant T and p. ~200 lines in a new
-  `Physics/RegenSolver.cs`; the contour and channel geometry it needs already
-  exist. This also unlocks *automatic* channel sizing (solve for count/Ø that
-  keeps wall < limit).
+- **Now:** `RegenSolver.cs` marches coolant enthalpy and pressure along the
+  channel path; Bartz hot-gas convection with local wall temperature; Gnielinski
+  tube-side h; peak wall temp and channel Δp in the report (`ThermalModel.cs`).
+- **Consequence:** bulk coolant ΔT is the honest enthalpy balance (kerolox 1 kN
+  may still need a lower O/F or different fuel); boiling margin is screened via
+  outlet temperature vs `MaxCoolantRiseK`.
+- **Next:** spec-tunable coolant inlet T / feed pressure; film-cooling fraction;
+  conjugate CFD coupling.
 
 ## 8.4 Injector: hydraulically-sized showerhead
 
@@ -84,7 +82,7 @@ milestone — and the one LEAP 71 famously demonstrated.
 ## 8.8 Suggested order of attack
 
 1. ~~RANS CFD switch + wall clustering~~ (shipped)
-2. 1D regen solver (unlocks real cooling design)
+2. ~~1D regen solver~~ (shipped)
 3. CEA gas tables (removes the biggest accuracy asterisk)
 4. Parameter sweep driver (turns the tool into a design-space explorer)
 5. Film cooling + better injector elements

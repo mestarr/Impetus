@@ -246,7 +246,7 @@ public static class ValidationReport
         {
             sb.AppendLine("The remaining failures are model- or scale-level, not spec-level:");
             sb.AppendLine();
-            sb.AppendLine("- Film-cooling / 1D regen solver — roadmap §8.3");
+            sb.AppendLine("- Film-cooling elements — roadmap §8.4");
             sb.AppendLine("- Propellant change — see what-if table above");
             sb.AppendLine("- Larger thrust class — better volume-to-surface ratio eases cooling");
         }

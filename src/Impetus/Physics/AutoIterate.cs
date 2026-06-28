@@ -30,10 +30,9 @@ public record IterateOutcome
 /// cap is reached. CFD is intentionally not run inside the loop (minutes per
 /// pass) — run `test` on the result.
 ///
-/// The loop only fixes what the v1 model can see. Checks whose drivers are
-/// not spec fields (gas-table L*, c*, the lumped coolant balance at small
-/// scale) are reported as "not fixable from the spec" with the upgrade path,
-/// instead of being silently iterated forever.
+/// The loop only fixes what the model can see. Checks whose drivers are
+/// not spec fields (gas-table L*, c*) are reported as unfixable with the
+/// upgrade path, instead of being silently iterated forever.
 /// </summary>
 public static class AutoIterate
 {
@@ -135,33 +134,41 @@ public static class AutoIterate
         }
 
         // --- Bulk coolant temperature rise ----------------------------------
-        // v1 lumped balance: dT = Q / (mdot_fuel · cp). Channel geometry does
-        // not appear in that equation — the only spec lever is more fuel flow,
-        // i.e. a lower O/F (bounded by the gas table's ±15% validity band).
         double fDtLimit = oDesign.Gas.MaxCoolantRiseK;
         if (oTherm.CoolantTempRise > fDtLimit)
         {
             double fFloor = Math.Round(oDesign.Gas.NominalOF * fOfFloorFraction, 2);
             if (n.OfRatio > fFloor + 1e-9)
             {
-                // dT scales ~ (1+OF); if even the floor can't pass, jump there in one step
                 double fProjectedAtFloor = oTherm.CoolantTempRise * (1.0 + fFloor) / (1.0 + n.OfRatio);
                 double fNew = fProjectedAtFloor > fDtLimit
                     ? fFloor
                     : Math.Max(fFloor, Math.Round(n.OfRatio - fOfStep, 2));
 
                 ao.Add(new(nIter, "ofRatio", F(n.OfRatio), F(fNew),
-                    $"coolant dT {oTherm.CoolantTempRise:F0} K > fuel limit {fDtLimit:F0} K — more fuel = more coolant"));
+                    $"coolant dT {oTherm.CoolantTempRise:F0} K > fuel limit {fDtLimit:F0} K — more fuel coolant"));
                 n = n with { OfRatio = fNew };
             }
             else
             {
                 astrUnfixable.Add(
                     $"Coolant temperature rise ({oTherm.CoolantTempRise:F0} K, fuel limit {fDtLimit:F0} K): " +
-                    "ofRatio is at its -15% floor and, in the v1 lumped balance, bulk dT depends only on " +
-                    "fuel flow × heat capacity — no spec field can close the gap. Real options: film cooling " +
-                    "(roadmap §8.3), a higher-cp fuel (see propellant what-if table), or a larger engine " +
-                    "(better volume-to-surface ratio).");
+                    "ofRatio is at its -15% floor. Options: film cooling (roadmap §8.4), a higher-cp fuel, or lower Pc/thrust.");
+            }
+        }
+
+        // --- Peak wall temperature (1D regen) --------------------------------
+        if (oTherm.PeakWallTempK > RegenSolver.MaxWallTempK)
+        {
+            CoolingSpec oSized = RegenSolver.SizeChannelsForWallTemp(
+                oDesign, new NozzleContour(oDesign), n.Cooling);
+            if (oSized.Count != n.Cooling.Count || Math.Abs(oSized.DiameterMM - n.Cooling.DiameterMM) > 1e-6)
+            {
+                ao.Add(new(nIter, "cooling",
+                    $"{n.Cooling.Count}x{n.Cooling.DiameterMM:F1}mm",
+                    $"{oSized.Count}x{oSized.DiameterMM:F1}mm",
+                    $"peak wall {oTherm.PeakWallTempK:F0} K > {RegenSolver.MaxWallTempK:F0} K"));
+                n = n with { Cooling = oSized };
             }
         }
 
