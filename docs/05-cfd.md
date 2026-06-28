@@ -6,11 +6,13 @@ Code: `src/Impetus/Cfd/Su2Case.cs` (mesh + config generation) and
 suite (Stanford-born, now SU2 Foundation), `win64-omp` build under
 `tools/SU2/bin/SU2_CFD.exe`.
 
-## 5.1 What exactly is simulated (v1)
+## 5.1 What exactly is simulated
 
 **The hot-gas path**: combustion chamber interior → convergent → throat →
-bell → exit plane, as a **2D axisymmetric, inviscid (Euler), ideal-gas**
-compressible flow of the equilibrium combustion products.
+bell → exit plane, as a **2D axisymmetric, viscous (RANS-SST), ideal-gas**
+compressible flow of the equilibrium combustion products. The nozzle wall is
+**isothermal** at 800 K — the same regen-cooled liner design point used by the
+Bartz correlation in the report.
 
 What this verifies:
 
@@ -18,15 +20,16 @@ What this verifies:
 - delivered **thrust** (momentum + pressure integral at the exit),
 - **mass flow** (i.e. the throat is the size the 1D theory thinks it is),
 - exit Mach / pressure distribution (1D theory assumes uniform; CFD shows the
-  real 2D profile that the Rao bell produces).
+  real 2D profile that the Rao bell produces),
+- **wall heat flux** near the throat (RANS vs Bartz, when SU2 writes it to
+  `surface_flow.csv`).
 
-What it deliberately does *not* model in v1: combustion (gas enters already
-burnt at \(T_c, p_c\)), viscous losses (Euler), wall heat transfer (handled
-analytically by Bartz in the report), and the external plume beyond the exit
+What it deliberately does *not* model: combustion (gas enters already
+burnt at \(T_c, p_c\)), conjugate heat transfer into the coolant (wall
+temperature is fixed, not solved), and the external plume beyond the exit
 plane. Expected agreement with 1D theory for a healthy bell:
-**within a few percent** on thrust and mass flow — if you see more, something
-physical is going on (over/under-expansion, shock in the bell, mesh problem)
-and the report will show it.
+**within a few percent** on thrust and mass flow — RANS may read slightly low
+due to boundary-layer displacement.
 
 ## 5.2 The mesh — structured, generated natively, no external tools
 
@@ -34,22 +37,26 @@ Because the hot-gas path is a single smoothly-curved channel and the wall
 contour is *already* an analytic function \(r(z)\), Impetus writes a
 **structured quad mesh in SU2's native ASCII format** directly:
 
-- **Topology:** (NI+1) × (NJ+1) nodes = 241 × 45 ≈ 10.8 k nodes,
-  240 × 44 ≈ 10.6 k quad cells. Node (i, j) sits at
-  \( (z_i,\; r(z_i)\cdot j/N_J) \) — radial lines from the axis to the wall at
-  every axial station. SU2's axisymmetric solver interprets x = axis,
-  y = radius.
+- **Topology:** (NI+1) × (NJ+1) nodes = 241 × 61 ≈ 14.7 k nodes,
+  240 × 60 ≈ 14.4 k quad cells. Node (i, j) sits at
+  \( (z_i,\; r(z_i)\cdot \phi(j/N_J)) \) where \(\phi\) is a geometric
+  stretch mapping that clusters nodes toward the wall — radial lines from the
+  axis to the wall at every axial station. SU2's axisymmetric solver interprets
+  x = axis, y = radius.
 - **Throat clustering:** axial stations are distributed by inverting the
   cumulative integral of a Gaussian point-density weight
   \( w(z) = 1 + 2.5\,e^{-((z-z_t)/1.5R_t)^2} \) — 3.5× denser cells where the
   sonic line and the strongest gradients live, smoothly blended (no abrupt
-  size jumps, which JST dissipation dislikes).
+  size jumps).
+- **Wall clustering:** radial stations use
+  \( y = r(z)\,(e^{\beta j/N_J}-1)/(e^\beta-1) \) with \(\beta \approx 2.8\)
+  — cells are finest next to the viscous wall for RANS-SST.
 - **Markers:** `inlet` (i = 0, chamber face), `outlet` (i = NI, exit plane),
   `wall` (j = NJ, the contour), `axis` (j = 0, symmetry axis).
 
 Mesh quality is deterministic: cells are axis-aligned quads with mild
 stretching; the worst skew appears at the steep convergent wall and remains
-benign for a JST/Euler scheme at this resolution.
+benign for ROE/RANS at this resolution.
 
 ## 5.3 The solver configuration, explained line by line
 
@@ -57,19 +64,20 @@ The generated `engine.cfg` (values inserted from the design):
 
 | Setting | Value | Why |
 |---|---|---|
-| `SOLVER= EULER` | inviscid | v1 verifies aerodynamics, not boundary layers; RANS is a config-level upgrade (roadmap) |
+| `SOLVER= RANS` | viscous | boundary layers, wall heat flux, separation screening |
+| `KIND_TURB_MODEL= SST` | | industry-standard two-equation model for internal nozzle flows |
 | `AXISYMMETRIC= YES` | | solves the 2D meridian plane with the 1/r source terms — full 3D answer for a body of revolution at ~1/1000 the cost |
 | `GAMMA_VALUE`, `GAS_CONSTANT` | from `CombustionGas` | the *same* γ and R_s the analytic model used — apples-to-apples comparison |
 | `MARKER_INLET= (inlet, T_c, p_c, 1,0,0)` with `INLET_TYPE= TOTAL_CONDITIONS` | | classic subsonic reservoir inlet: stagnation temperature + pressure + axial flow direction. The chamber face Mach (~0.15 at CR = 4) develops on its own |
 | `MARKER_OUTLET= (outlet, p_a)` | | back-pressure outlet; once the exit goes supersonic during convergence SU2 switches to pure extrapolation and the value becomes irrelevant — robust in both startup and converged phases |
-| `MARKER_EULER= (wall)` | | slip wall (inviscid) |
+| `MARKER_ISOTHERMAL= (wall, 800 K)` | | no-slip wall at the regen-cooled liner design temperature (matches Bartz) |
 | `MARKER_SYM= (axis)` | | symmetry/axis condition |
-| `CONV_NUM_METHOD_FLOW= JST` | | central scheme with artificial dissipation — the standard robust choice for internal transonic flows; no limiter tuning needed |
-| `TIME_DISCRE_FLOW= EULER_IMPLICIT` + `CFL_ADAPT 0.5 → 25` | | implicit pseudo-time marching; CFL ramps up automatically as residuals fall |
+| `CONV_NUM_METHOD_FLOW= ROE` + `MUSCL_FLOW= YES` | | upwind RANS scheme; more robust than JST for viscous walls |
+| `TIME_DISCRE_FLOW/TURB= EULER_IMPLICIT` + `CFL_ADAPT 0.25 → 10` | | implicit pseudo-time marching; conservative CFL ramp for RANS |
 | `FREESTREAM_* = (p_c, T_c)`, `INIT_OPTION= TD_CONDITIONS` | | the whole field initializes at chamber stagnation state; flow "starts" from rest and establishes through the nozzle — the reliable way to start internal nozzle cases |
-| `ITER= 8000`, `CONV_FIELD= RMS_DENSITY`, `CONV_RESIDUAL_MINVAL= -9` | | stops early when density residual drops 9 orders; 8000 is a hard cap |
-| `OUTPUT_FILES= (RESTART, PARAVIEW, SURFACE_CSV)` | | restart for re-runs, `flow.vtu` for ParaView, surface CSV for thrust integration |
-| `MARKER_PLOTTING= (outlet)` | | the surface CSV then contains **only exit-plane nodes** — post-processing needs no filtering logic |
+| `ITER= 12000`, `CONV_FIELD= RMS_DENSITY`, `CONV_RESIDUAL_MINVAL= -8` | | RANS needs more iterations than Euler; stops early when density residual drops 8 orders |
+| `OUTPUT_FILES= (RESTART, PARAVIEW, SURFACE_CSV)` | | restart for re-runs, `flow.vtu` for ParaView, surface CSV for thrust + wall flux |
+| `MARKER_PLOTTING= (outlet, wall)` | | surface CSV contains exit-plane nodes for thrust integration and wall nodes for heat-flux comparison |
 
 Everything is plain text in `designs/<name>/cfd/` — you can hand-edit the
 config and re-run SU2 manually at any time:
@@ -128,10 +136,8 @@ Mach, no diamonds inside the bell.
 
 ## 5.7 Validation pedigree of the setup
 
-Axisymmetric Euler + JST on a structured grid is *the* textbook configuration
-for nozzle performance prediction — it is what nozzle design codes (e.g.
-TDK/MOC-class tools) are routinely benchmarked against, and SU2's own
-regression suite includes converging-diverging nozzle cases of exactly this
-type. The known systematic deviations vs. reality (not vs. 1D theory) are
-boundary-layer displacement (fraction of a percent on thrust at this scale)
-and chemistry effects (γ varying through expansion) — both roadmap items.
+Axisymmetric RANS-SST on a structured wall-clustered grid is the standard
+upgrade path from inviscid nozzle screening. Impetus runs **RANS-SST** with an
+isothermal wall BC. Known systematic deviations vs. reality (not vs. 1D theory)
+include chemistry effects (γ varying through expansion) and conjugate coolant
+coupling — both further roadmap items.

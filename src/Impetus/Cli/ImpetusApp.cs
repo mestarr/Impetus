@@ -206,7 +206,7 @@ static class ImpetusApp
         ref CfdResult? oCfdForValidation)
     {
         string strCaseDir = Path.Combine(strOutDir, "cfd");
-        Console.WriteLine("Writing SU2 case (axisymmetric Euler, hot gas path)...");
+        Console.WriteLine("Writing SU2 case (axisymmetric RANS-SST, hot gas path)...");
         new Su2Case(oDesign, oContour).Write(strCaseDir);
 
         string? strSu2 = Su2Runner.FindSu2();
@@ -228,7 +228,7 @@ static class ImpetusApp
                 CfdResult oCfd = Su2Runner.PostProcess(strCaseDir, oDesign);
                 oCfdForValidation = oCfd;
                 ValidationResult oValidation = VirtualValidation.Evaluate(oDesign, oTherm, oCfdForValidation);
-                strReport += DesignReport.CfdSection(oDesign, oCfd);
+                strReport += DesignReport.CfdSection(oDesign, oCfd, oTherm);
 
                 Console.WriteLine();
                 Console.WriteLine($"  CFD thrust     {oCfd.ThrustN,10:F1} N   (analytic {oSpec.ThrustN:F1} N)");
@@ -256,7 +256,7 @@ static class ImpetusApp
         string strCaseDir = Path.Combine(strOutDir, "cfd");
         CfdResult oCfd = Su2Runner.PostProcess(strCaseDir, oDesign);
         ValidationResult oValidation = VirtualValidation.Evaluate(oDesign, oTherm, oCfd);
-        strReport += DesignReport.CfdSection(oDesign, oCfd);
+        strReport += DesignReport.CfdSection(oDesign, oCfd, oTherm);
         Console.WriteLine($"  CFD thrust     {oCfd.ThrustN,10:F1} N   (analytic {oDesign.Spec.ThrustN:F1} N)");
         Console.WriteLine($"  CFD mass flow  {oCfd.MassFlow,10:F3} kg/s (analytic {oDesign.MassFlow:F3} kg/s)");
         Console.WriteLine($"  CFD exit Mach  {oCfd.ExitMachAvg,10:F2}     (analytic {oDesign.ExitMach:F2})");
