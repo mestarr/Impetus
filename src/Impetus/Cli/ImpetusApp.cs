@@ -207,7 +207,12 @@ static class ImpetusApp
     {
         string strCaseDir = Path.Combine(strOutDir, "cfd");
         Console.WriteLine("Writing SU2 case (axisymmetric RANS-SST, hot gas path)...");
-        new Su2Case(oDesign, oContour).Write(strCaseDir);
+        double fWallBc = double.IsNaN(oTherm.ThroatWallTempK)
+            ? oTherm.PeakWallTempK
+            : oTherm.ThroatWallTempK;
+        if (double.IsNaN(fWallBc) || fWallBc <= 0)
+            fWallBc = ThermalModel.AssumedRegenWallTempK;
+        new Su2Case(oDesign, oContour, fWallBc).Write(strCaseDir);
 
         string? strSu2 = Su2Runner.FindSu2();
         if (strSu2 is null)

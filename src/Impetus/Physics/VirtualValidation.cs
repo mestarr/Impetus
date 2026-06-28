@@ -62,6 +62,7 @@ public static class VirtualValidation
 
         aoChecks.Add(CheckCoolantRise(oDesign, oTherm));
         aoChecks.Add(CheckCoolantVelocity(oTherm));
+        aoChecks.Add(CheckWallTemperature(oTherm));
         aoChecks.Add(CheckInjectorStiffness(oDesign));
         aoChecks.Add(CheckInjectorStability(oDesign));
         aoChecks.Add(CheckExpansionMatch(oDesign));
@@ -106,8 +107,26 @@ public static class VirtualValidation
                 "Margin is thin — a slightly lower ofRatio adds fuel coolant; verify with instrumented short burns.");
         return new("Coolant temperature rise", CheckStatus.Fail,
             $"{fDT:F0} K — exceeds this fuel's {fLimit:F0} K coolant limit; boiling / coking likely.",
-            "Lower ofRatio (more fuel = more coolant) or pick a higher-cp fuel; in the v1 lumped balance, " +
-            "channel geometry does not change bulk dT. Run the iterate command to auto-tune.");
+            "Lower ofRatio (more fuel coolant), increase regen-cooled length, or run iterate to auto-tune channels and O/F.");
+    }
+
+    static ValidationCheck CheckWallTemperature(ThermalResult oTherm)
+    {
+        double fTw = oTherm.PeakWallTempK;
+        if (double.IsNaN(fTw))
+            fTw = oTherm.AssumedWallTemp;
+
+        if (fTw <= RegenSolver.MaxWallTempK * 0.9)
+            return new("Peak wall temperature (1D regen)", CheckStatus.Pass,
+                $"{fTw:F0} K — within CuCrZr regen liner limit ({RegenSolver.MaxWallTempK:F0} K).",
+                "None.");
+        if (fTw <= RegenSolver.MaxWallTempK)
+            return new("Peak wall temperature (1D regen)", CheckStatus.Warn,
+                $"{fTw:F0} K — near the {RegenSolver.MaxWallTempK:F0} K design ceiling.",
+                "Increase cooling.count or reduce channel diameter (higher h_c); run iterate.");
+        return new("Peak wall temperature (1D regen)", CheckStatus.Fail,
+            $"{fTw:F0} K — exceeds {RegenSolver.MaxWallTempK:F0} K CuCrZr regen limit.",
+            "Increase cooling.count, reduce channel diameter for higher velocity, or lower Pc / O/F.");
     }
 
     static ValidationCheck CheckCoolantVelocity(ThermalResult oTherm)
@@ -123,7 +142,7 @@ public static class VirtualValidation
                 "Reduce cooling.count or cooling.diameterMM (less flow area = faster coolant).");
         return new("Coolant channel velocity", CheckStatus.Warn,
             $"{fV:F1} m/s — high; erosion risk in soft copper alloys.",
-            "Increase channel count or diameter to lower velocity.");
+            "Increase channel count or diameter, or add parallel paths to lower velocity.");
     }
 
     static ValidationCheck CheckInjectorStiffness(EngineDesign o)
@@ -192,8 +211,8 @@ public static class VirtualValidation
                 "None.");
         if (fQ <= ThroatFluxFailMW)
             return new("Throat heat flux (Bartz)", CheckStatus.Warn,
-                $"{fQ:F1} MW/m² — high; verify wall temperatures with a 1D regen solver before hot fire.",
-                "Consider Inconel 718 for uncooled regions or more aggressive cooling.");
+                $"{fQ:F1} MW/m² — high; 1D regen march reports peak wall {oTherm.PeakWallTempK:F0} K.",
+                "Consider Inconel 718 for uncooled regions or more aggressive channel sizing.");
         return new("Throat heat flux (Bartz)", CheckStatus.Fail,
             $"{fQ:F1} MW/m² — beyond typical regen-cooled copper capability.",
             "Reduce Pc, enlarge throat, or upgrade cooling geometry.");
