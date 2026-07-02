@@ -1,0 +1,19 @@
+{
+  "name": "PERF-KERO-A",
+  "thrustN": 1000,
+  "chamberPressureBar": 14,
+  "ambientPressureBar": 1.01325,
+  "propellants": "LOX_Kerosene",
+  "ofRatio": 1.95,
+  "expansionRatio": 0,
+  "bellFraction": 0.8,
+  "contractionRatio": 4.0,
+  "wallThicknessMM": 3.0,
+  "cooling": {
+    "count": 16,
+    "diameterMM": 1.0,
+    "helixTurns": 1.0
+  },
+  "voxelSizeMM": 0.4,
+  "printerBedMM": 250
+}

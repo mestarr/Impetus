@@ -1,14 +1,19 @@
 {
-  "name": "MY-ENG-A",
-  "thrustN": 1500,
-  "chamberPressureBar": 18,
+  "name": "PERF-H2-A",
+  "thrustN": 1000,
+  "chamberPressureBar": 16,
   "ambientPressureBar": 1.01325,
-  "propellants": "LOX_Kerosene",
-  "ofRatio": 2.2,
+  "propellants": "LOX_Hydrogen",
+  "ofRatio": 5.5,
   "expansionRatio": 0,
   "bellFraction": 0.8,
   "contractionRatio": 4.0,
   "wallThicknessMM": 3.0,
-  "cooling": { "count": 24, "diameterMM": 1.4, "helixTurns": 1.0 },
-  "voxelSizeMM": 0.4
+  "cooling": {
+    "count": 28,
+    "diameterMM": 1.2,
+    "helixTurns": 1.0
+  },
+  "voxelSizeMM": 0.4,
+  "printerBedMM": 250
 }
