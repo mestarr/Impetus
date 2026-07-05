@@ -199,8 +199,8 @@ Detailed engineering documentation lives in [`docs/`](docs/01-overview.md):
 
 ## Honest limitations (v1)
 
-- Combustion gas properties are representative textbook values per propellant
-  pair, not a full NASA-CEA equilibrium calculation.
+- Combustion gas properties come from **CEA-equilibrium tables** in `data/gas/`
+  (Tc, γ, M vs O/F and Pc). γ is frozen through nozzle expansion.
 - The CFD is **RANS-SST** axisymmetric with an isothermal wall: it verifies nozzle
   aerodynamics and reports throat wall heat flux vs Bartz, not conjugate cooling
   or combustion in the chamber.
@@ -210,7 +210,7 @@ Detailed engineering documentation lives in [`docs/`](docs/01-overview.md):
 
 ## Roadmap
 
-- [ ] CEA-derived gas property tables (O/F and Pc dependent)
+- [x] CEA-derived gas property tables (O/F and Pc dependent)
 - [x] RANS (viscous) nozzle CFD + wall heat flux extraction from SU2
 - [x] 1D regen channel solver (pressure drop, wall temperature profile)
 - [ ] Aerospike module

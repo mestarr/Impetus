@@ -51,7 +51,8 @@ public static class EngineSizing
     /// </summary>
     public static EngineDesign Size(EngineSpec oSpec)
     {
-        CombustionGas oGas = CombustionGas.ForPair(oSpec.Propellants);
+        CombustionGas oGas = CombustionGas.Resolve(
+            oSpec.Propellants, oSpec.OfRatio, oSpec.ChamberPressureBar);
         double g = oGas.Gamma;
         double fPc = oSpec.Pc;
         double fPa = oSpec.Pa;
