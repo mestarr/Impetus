@@ -92,14 +92,9 @@ build, why, and in what order.
 
 ### 3. CEA-derived gas property tables
 
-- **Now:** fixed Tc, M, γ per propellant pair at typical O/F (`GasModel.cs`).
-- **Missing:** O/F-dependent properties; γ frozen through expansion (no
-  recombination).
-- **Upgrade:**
-  - Offline NASA CEA (or Cantera) tables: Tc, γ, M = f(O/F, Pc).
-  - Ship as data files; `CombustionGas` becomes an interpolator.
-- **Benefit:** Isp and sizing accurate off-nominal O/F; removes largest
-  accuracy asterisk in reports.
+- [x] **Shipped:** `data/gas/*.json` grids (Tc, M, γ vs O/F and Pc);
+  `GasTableStore` bilinear interpolation; `CombustionGas.Resolve(key, of, pc)`.
+  Reports show interpolated gas properties. Frozen γ through expansion remains.
 
 ### 4. Parameter sweep / optimization driver
 
