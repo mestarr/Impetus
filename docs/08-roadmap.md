@@ -4,17 +4,14 @@ Each v1 simplification below is listed with its *consequence* (what to watch
 for) and its *upgrade path* (how it slots into the existing architecture —
 which is why the architecture looks the way it does).
 
-## 8.1 Gas model: textbook tables instead of chemical equilibrium
+## 8.1 Gas model: CEA tables (O/F and Pc)
 
-- **Now:** fixed \(T_c, \mathcal{M}, \gamma\) per propellant pair at its
-  typical O/F (`GasModel.cs`).
-- **Consequence:** Isp-class results good to a few percent near the nominal
-  O/F; off-nominal mixture studies are not meaningful yet; γ is frozen through
-  the expansion (real products recombine → slightly more thrust).
-- **Upgrade:** generate lookup tables with NASA CEA (or Cantera) offline —
-  \(T_c, \gamma, \mathcal{M} = f(O/F, p_c)\) — and ship them as data files.
-  `CombustionGas` is already the single seam: swap the static table for an
-  interpolator, nothing else changes.
+- **Now:** `data/gas/*.json` equilibrium grids; bilinear interpolation in
+  `GasTableStore.cs`. Sizing calls `CombustionGas.Resolve(propellants, ofRatio, pcBar)`.
+- **Consequence:** Isp and c* track off-nominal O/F and chamber pressure within
+  the tabulated range. γ is still **frozen** through the nozzle expansion.
+- **Next:** shifting-equilibrium γ(M) in expansion; regenerate tables from a
+  scripted NASA CEA batch job checked into `tools/cea/`.
 
 ## 8.2 CFD: RANS-SST with isothermal wall
 
@@ -83,7 +80,7 @@ milestone — and the one LEAP 71 famously demonstrated.
 
 1. ~~RANS CFD switch + wall clustering~~ (shipped)
 2. ~~1D regen solver~~ (shipped)
-3. CEA gas tables (removes the biggest accuracy asterisk)
+3. ~~CEA gas tables~~ (shipped — frozen γ in nozzle remains)
 4. Parameter sweep driver (turns the tool into a design-space explorer)
 5. Film cooling + better injector elements
 6. Manufacturability checks

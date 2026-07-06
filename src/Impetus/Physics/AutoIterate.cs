@@ -153,7 +153,7 @@ public static class AutoIterate
             {
                 astrUnfixable.Add(
                     $"Coolant temperature rise ({oTherm.CoolantTempRise:F0} K, fuel limit {fDtLimit:F0} K): " +
-                    "ofRatio is at its -15% floor. Options: film cooling (roadmap §8.4), a higher-cp fuel, or lower Pc/thrust.");
+                    "ofRatio is at the table floor. Options: film cooling (roadmap §8.4), a higher-cp fuel, or lower Pc/thrust.");
             }
         }
 
@@ -213,15 +213,16 @@ public static class AutoIterate
     static List<PropellantOption> PropellantWhatIf(EngineSpec oSpec)
     {
         List<PropellantOption> ao = [];
-        foreach ((string strKey, CombustionGas oGas) in CombustionGas.Table)
+        foreach (string strKey in CombustionGas.PropellantKeys)
         {
             try
             {
-                EngineSpec oTry = oSpec with { Propellants = strKey, OfRatio = oGas.NominalOF };
+                CombustionGas oNom = CombustionGas.ForPair(strKey);
+                EngineSpec oTry = oSpec with { Propellants = strKey, OfRatio = oNom.NominalOF };
                 EngineDesign oDesign = EngineSizing.Size(oTry);
                 ThermalResult oTherm = ThermalModel.Evaluate(oDesign, new NozzleContour(oDesign));
-                ao.Add(new(strKey, oGas.Name, oTherm.CoolantTempRise,
-                    oTherm.CoolantTempRise <= oGas.MaxCoolantRiseK));
+                ao.Add(new(strKey, oNom.Name, oTherm.CoolantTempRise,
+                    oTherm.CoolantTempRise <= oNom.MaxCoolantRiseK));
             }
             catch
             {

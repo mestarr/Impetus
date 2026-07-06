@@ -19,18 +19,20 @@ specific heats, \(R_s\) specific gas constant, \(M\) Mach number,
 
 ---
 
-## 3.1 Combustion gas model (`GasModel.cs`)
+## 3.1 Combustion gas model (`GasModel.cs`, `data/gas/`)
 
-v1 deliberately avoids running chemical equilibrium and instead carries a
-table of representative product-gas properties per propellant pair, taken from
-standard references at typical mixture ratios and \(p_c \sim 2\) MPa:
+Equilibrium chamber properties \(T_c\), \(\mathcal{M}\), and \(\gamma\) are
+read from **CEA-derived tables** shipped under `data/gas/*.json` and
+bilinearly interpolated in O/F and \(p_c\). Liquid fuel/oxidizer densities and
+coolant limits remain fixed per propellant pair.
 
-| Pair | O/F | \(T_c\) [K] | \(\mathcal{M}\) [g/mol] | \(\gamma\) | L* [m] |
-|---|---|---|---|---|---|
-| LOX / RP-1 (kerosene) | 2.3 | 3570 | 21.9 | 1.22 | 1.0 |
-| LOX / CH₄ (methane) | 3.4 | 3530 | 21.3 | 1.23 | 0.9 |
-| LOX / LH₂ (hydrogen) | 5.5 | 3300 | 12.0 | 1.26 | 0.75 |
-| N₂O / Ethanol | 4.5 | 2980 | 24.5 | 1.22 | 1.2 |
+Example grid (LOX / RP-1) at \(p_c = 20\) bar:
+
+| O/F | \(T_c\) [K] | \(\mathcal{M}\) [g/mol] | \(\gamma\) |
+|---|---|---|---|
+| 1.8 | 3630 | 23.3 | 1.198 |
+| 2.3 | 3710 | 21.8 | 1.218 |
+| 3.0 | 3640 | 20.6 | 1.225 |
 
 Derived quantities:
 
@@ -44,10 +46,11 @@ approximations [Sutton ch. 8]:
    \;\;[\text{Pa·s}], \qquad
    \Pr \approx \frac{4\gamma}{9\gamma - 5} \]
 
-**Error budget:** frozen-flow textbook values typically land within ~2–5 % of
-a full CEA equilibrium calculation for Isp-class quantities at these
-conditions. That is acceptable for sizing; the roadmap upgrades this to
-CEA-derived tables varying with O/F and \(p_c\).
+**Frozen flow:** \(\gamma\) is held constant through the nozzle (no shifting
+equilibrium / recombination in expansion). A future upgrade is a
+\(\gamma(M,p)\) table from CEA.
+
+**Adding propellants:** drop a new JSON grid in `data/gas/` — no recompile.
 
 ---
 
