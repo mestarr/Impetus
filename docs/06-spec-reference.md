@@ -66,14 +66,11 @@ liquid densities, fuel cp).
 
 ### `ofRatio` — number
 
-Oxidizer-to-fuel **mass** ratio. v1 uses it for flow splits and injector
-sizing; gas properties are tabulated at the pair's typical O/F (the table
-value, e.g. 2.3 for kerolox), so for physical consistency keep within ±15 % of
-that — until the CEA-table upgrade makes properties O/F-dependent.
+Oxidizer-to-fuel **mass** ratio. Used for flow splits, injector sizing, and
+**CEA gas-table lookup** (`data/gas/` — Tc, γ, M interpolated at your O/F and
+Pc). Stay within each file's tabulated O/F range (see grid in the JSON).
 
-Side effect worth knowing: **lower O/F = more fuel = more coolant.** If the
-report's coolant ΔT is scary, dropping O/F a bit is a legitimate real-world
-trick (at a small Isp cost).
+Side effect: **lower O/F = more fuel = more coolant** (at a small Isp cost).
 
 ### `expansionRatio` — number
 
