@@ -43,6 +43,7 @@ public static class DesignReport
         sb.AppendLine($"| Expansion ratio Ae/At | {F(o.ExpansionRatio, "F2")} |");
         sb.AppendLine($"| Exit Mach | {F(o.ExitMach, "F2")} |");
         sb.AppendLine($"| Exit pressure | {F(o.ExitPressure / 1e5, "F3")} bar |");
+        sb.AppendLine($"| Gas model | CEA table: Tc {F(o.Gas.Tc, "F0")} K, γ {F(o.Gas.Gamma, "F3")}, M {F(o.Gas.MolarMass * 1000, "F1")} g/mol |");
         sb.AppendLine();
         sb.AppendLine("## Geometry");
         sb.AppendLine();

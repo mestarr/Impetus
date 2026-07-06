@@ -10,6 +10,48 @@ using Xunit;
 
 namespace Impetus.Tests;
 
+public class GasTableTests
+{
+    [Fact]
+    public void Kerolox_OfChanges_TcAndCStar()
+    {
+        CombustionGas oRich = CombustionGas.Resolve("LOX_Kerosene", 1.8, 20);
+        CombustionGas oNom = CombustionGas.Resolve("LOX_Kerosene", 2.3, 20);
+        CombustionGas oLean = CombustionGas.Resolve("LOX_Kerosene", 3.0, 20);
+
+        Assert.True(oNom.Tc >= oRich.Tc * 0.98);
+        Assert.True(oNom.Tc >= oLean.Tc);
+        Assert.NotEqual(oRich.MolarMass, oLean.MolarMass);
+    }
+
+    [Fact]
+    public void Kerolox_PcChanges_Tc()
+    {
+        CombustionGas oLow = CombustionGas.Resolve("LOX_Kerosene", 2.3, 10);
+        CombustionGas oHigh = CombustionGas.Resolve("LOX_Kerosene", 2.3, 30);
+        Assert.True(oHigh.Tc > oLow.Tc);
+    }
+
+    [Fact]
+    public void Interpolation_MatchesGridCorner()
+    {
+        double fTc = GasTableStore.Sample2D(
+            [1.6, 1.8, 2.0, 2.3, 2.6, 3.0, 3.4],
+            [10, 15, 20, 25, 30],
+            [
+                [3480, 3530, 3560, 3580, 3590],
+                [3550, 3600, 3630, 3650, 3660],
+                [3600, 3650, 3680, 3700, 3710],
+                [3630, 3680, 3710, 3730, 3740],
+                [3610, 3660, 3690, 3710, 3720],
+                [3560, 3610, 3640, 3660, 3670],
+                [3500, 3550, 3580, 3600, 3610]
+            ],
+            2.3, 20);
+        Assert.Equal(3710, fTc, 1);
+    }
+}
+
 public class Su2CaseTests
 {
     [Fact]
