@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -38,7 +39,7 @@ public static class GasTableStore
         NumberHandling = JsonNumberHandling.AllowReadingFromString
     };
 
-    public static IReadOnlyCollection<string> Keys => s_oGrids.Value.Keys;
+    public static IReadOnlyCollection<string> Keys => s_oGrids.Value.Keys.ToList();
 
     public static CombustionGas Resolve(string strKey, double fOfRatio, double fPcBar)
     {
@@ -126,7 +127,7 @@ public static class GasTableStore
     }
 
     /// <summary>Bilinear interpolation on a rectilinear O/F × Pc grid.</summary>
-    internal static double Sample2D(
+    public static double Sample2D(
         double[] afOf, double[] afPc, double[][] afValues,
         double fOf, double fPc)
     {

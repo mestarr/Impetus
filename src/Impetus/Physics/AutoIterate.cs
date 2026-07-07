@@ -137,7 +137,7 @@ public static class AutoIterate
         double fDtLimit = oDesign.Gas.MaxCoolantRiseK;
         if (oTherm.CoolantTempRise > fDtLimit)
         {
-            double fFloor = Math.Round(oDesign.Gas.NominalOF * fOfFloorFraction, 2);
+            double fFloor = Math.Round(oDesign.Gas.NominalOf * fOfFloorFraction, 2);
             if (n.OfRatio > fFloor + 1e-9)
             {
                 double fProjectedAtFloor = oTherm.CoolantTempRise * (1.0 + fFloor) / (1.0 + n.OfRatio);
@@ -218,7 +218,7 @@ public static class AutoIterate
             try
             {
                 CombustionGas oNom = CombustionGas.ForPair(strKey);
-                EngineSpec oTry = oSpec with { Propellants = strKey, OfRatio = oNom.NominalOF };
+                EngineSpec oTry = oSpec with { Propellants = strKey, OfRatio = oNom.NominalOf };
                 EngineDesign oDesign = EngineSizing.Size(oTry);
                 ThermalResult oTherm = ThermalModel.Evaluate(oDesign, new NozzleContour(oDesign));
                 ao.Add(new(strKey, oNom.Name, oTherm.CoolantTempRise,
