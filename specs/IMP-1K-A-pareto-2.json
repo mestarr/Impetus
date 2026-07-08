@@ -1,0 +1,19 @@
+{
+  "name": "IMP-1K-A-pareto-2",
+  "thrustN": 1000,
+  "chamberPressureBar": 20,
+  "ambientPressureBar": 1.01325,
+  "propellants": "LOX_Kerosene",
+  "ofRatio": 2,
+  "expansionRatio": 0,
+  "bellFraction": 0.8,
+  "contractionRatio": 4,
+  "wallThicknessMM": 3,
+  "cooling": {
+    "count": 24,
+    "diameterMM": 1.4,
+    "helixTurns": 1
+  },
+  "voxelSizeMM": 0.4,
+  "printerBedMM": 250
+}
