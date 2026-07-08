@@ -16,9 +16,9 @@ static class ImpetusApp
         if (strCmd == "smoke")
             return RunSmoke();
 
-        if (strCmd is not ("design" or "test" or "all" or "view" or "post" or "validate" or "iterate" or "print"))
+        if (strCmd is not ("design" or "test" or "all" or "view" or "post" or "validate" or "iterate" or "print" or "sweep" or "optimize"))
         {
-            Console.WriteLine("usage: impetus design|test|all|view|post|validate|iterate|print [spec.json]");
+            Console.WriteLine("usage: impetus design|test|all|view|post|validate|iterate|print|sweep|optimize [spec.json] [args]");
             return 1;
         }
 
@@ -40,6 +40,12 @@ static class ImpetusApp
 
         if (strCmd == "iterate")
             return RunIterate(oSpec);
+
+        if (strCmd == "sweep")
+            return RunSweep(oSpec, args);
+
+        if (strCmd == "optimize")
+            return RunOptimize(oSpec, args);
 
         if (strCmd == "print")
         {
@@ -314,5 +320,116 @@ static class ImpetusApp
         {
             return null;
         }
+    }
+
+    static int RunSweep(EngineSpec oSpec, string[] args)
+    {
+        Console.WriteLine("Parameter sweep: exploring design space...");
+
+        // Parse sweep arguments (skip command and spec path)
+        string[] aoSweepArgs = args.Length > 2 ? args[2..] : [];
+        SweepConfig oConfig = ParameterSweep.ParseArgs(aoSweepArgs);
+
+        // If no parameters specified, use a reasonable default sweep
+        if (oConfig.PcBar == null && oConfig.OfRatio == null && oConfig.ExpansionRatio == null)
+        {
+            Console.WriteLine("No sweep parameters specified, using default sweep over Pc and O/F...");
+            oConfig = oConfig with
+            {
+                PcBar = [15, 20, 25, 30],
+                OfRatio = [2.0, 2.3, 2.6]
+            };
+        }
+
+        SweepResult oResult = ParameterSweep.Run(oSpec, oConfig);
+        SweepReport.PrintConsoleSummary(oResult);
+
+        // Write report
+        string strOutDir = RepoPaths.DesignDir(oSpec.Name + "-sweep");
+        Directory.CreateDirectory(strOutDir);
+        string strReport = SweepReport.Build(oResult);
+        File.WriteAllText(Path.Combine(strOutDir, "sweep-report.md"), strReport);
+
+        Console.WriteLine();
+        Console.WriteLine($"Sweep report: {Path.Combine(strOutDir, "sweep-report.md")}");
+
+        // Export best Pareto designs as specs
+        for (int i = 0; i < Math.Min(5, oResult.ParetoFront.Count); i++)
+        {
+            SweepPoint oPt = oResult.ParetoFront[i];
+            string strSpecName = $"{oSpec.Name}-pareto-{i + 1}";
+            EngineSpec oNewSpec = oPt.Spec with { Name = strSpecName };
+            string strSpecPath = Path.Combine(RepoPaths.Root(), "specs", strSpecName + ".json");
+            oNewSpec.Save(strSpecPath);
+            Console.WriteLine($"  Pareto spec {i + 1}: {strSpecPath}");
+        }
+
+        Console.WriteLine();
+        Console.WriteLine("Next steps:");
+        Console.WriteLine("  - Review sweep-report.md for full analysis");
+        Console.WriteLine("  - Run 'design' on a Pareto spec to generate geometry");
+        Console.WriteLine("  - Run 'test' on a shortlisted design for CFD verification");
+
+        return 0;
+    }
+
+    static int RunOptimize(EngineSpec oSpec, string[] args)
+    {
+        Console.WriteLine("Nelder-Mead optimization: finding optimal design...");
+
+        // Parse optimization arguments (skip command and spec path)
+        string[] aoOptArgs = args.Length > 2 ? args[2..] : [];
+
+        // Default optimization: Pc and O/F
+        string[] aoParams = ["pc", "of"];
+        (double fMin, double fMax)[] aoBounds =
+        [
+            (10.0, 40.0),  // Pc: 10-40 bar
+            (1.5, 3.5)     // O/F: 1.5-3.5
+        ];
+
+        if (aoOptArgs.Length > 0)
+        {
+            try
+            {
+                (aoParams, aoBounds) = Optimizer.ParseOptimizationArgs(aoOptArgs);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error parsing optimization args: {ex.Message}");
+                Console.WriteLine("Usage: --params pc,of,eps --bounds \"10:40,1.5:3.5,0:50\"");
+                return 1;
+            }
+        }
+        else
+        {
+            Console.WriteLine("Using default optimization: Pc (10-40 bar) and O/F (1.5-3.5)");
+        }
+
+        OptimizationObjective oObjective = new();
+        OptimizationResult oResult = Optimizer.Optimize(oSpec, aoParams, aoBounds, oObjective);
+        SweepReport.PrintOptimizationSummary(oResult);
+
+        // Write report
+        string strOutDir = RepoPaths.DesignDir(oSpec.Name + "-optimize");
+        Directory.CreateDirectory(strOutDir);
+        string strReport = SweepReport.BuildOptimization(oResult);
+        File.WriteAllText(Path.Combine(strOutDir, "optimization-report.md"), strReport);
+
+        // Save best spec
+        string strBestSpecName = $"{oSpec.Name}-opt";
+        EngineSpec oBestSpec = oResult.BestSpec with { Name = strBestSpecName };
+        string strBestSpecPath = Path.Combine(RepoPaths.Root(), "specs", strBestSpecName + ".json");
+        oBestSpec.Save(strBestSpecPath);
+
+        Console.WriteLine();
+        Console.WriteLine($"Optimization report: {Path.Combine(strOutDir, "optimization-report.md")}");
+        Console.WriteLine($"Best spec: {strBestSpecPath}");
+        Console.WriteLine();
+        Console.WriteLine("Next steps:");
+        Console.WriteLine($"  - Run 'design specs/{strBestSpecName}.json' to generate geometry");
+        Console.WriteLine($"  - Run 'test specs/{strBestSpecName}.json' for CFD verification");
+
+        return 0;
     }
 }
