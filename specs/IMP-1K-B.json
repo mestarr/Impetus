@@ -10,8 +10,8 @@
   "contractionRatio": 4,
   "wallThicknessMM": 3,
   "cooling": {
-    "count": 16,
-    "diameterMM": 1,
+    "count": 28,
+    "diameterMM": 0.8,
     "helixTurns": 1
   },
   "voxelSizeMM": 0.4,
