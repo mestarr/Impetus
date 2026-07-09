@@ -1,10 +1,10 @@
 {
   "name": "IMP-1K-A-pareto-1",
   "thrustN": 1000,
-  "chamberPressureBar": 20,
+  "chamberPressureBar": 25,
   "ambientPressureBar": 1.01325,
   "propellants": "LOX_Kerosene",
-  "ofRatio": 2.3,
+  "ofRatio": 2.6,
   "expansionRatio": 0,
   "bellFraction": 0.8,
   "contractionRatio": 4,
