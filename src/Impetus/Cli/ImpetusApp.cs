@@ -39,7 +39,7 @@ static class ImpetusApp
         ValidationReport.PrintSummary(oValidation);
 
         if (strCmd == "iterate")
-            return RunIterate(oSpec);
+            return RunIterate(oSpec, args);
 
         if (strCmd == "sweep")
             return RunSweep(oSpec, args);
@@ -93,11 +93,17 @@ static class ImpetusApp
         return 0;
     }
 
-    static int RunIterate(EngineSpec oSpec)
+    static int RunIterate(EngineSpec oSpec, string[] args)
     {
         Console.WriteLine("Auto-iterate: turning validation failures into spec corrections");
         Console.WriteLine("(CFD is not run inside the loop - run 'test' on the result).");
-        IterateOutcome oOut = AutoIterate.Run(oSpec);
+
+        // Check for --optimize flag
+        bool bOptimize = args.Length > 2 && args[2] == "--optimize";
+        if (bOptimize)
+            Console.WriteLine("Optimization mode: minimize length while passing gates.");
+
+        IterateOutcome oOut = AutoIterate.Run(oSpec, bOptimize);
 
         if (oOut.Steps.Count == 0 && oOut.Converged)
         {
@@ -106,15 +112,8 @@ static class ImpetusApp
             return 0;
         }
 
-        foreach (IterationStep oStep in oOut.Steps)
-            Console.WriteLine($"  [pass {oStep.Iteration}] {oStep.Field}: {oStep.From} -> {oStep.To}  ({oStep.Reason})");
-
-        Console.WriteLine();
-        Console.WriteLine($"  Coolant dT   {oOut.OriginalThermal.CoolantTempRise,7:F0} K    -> {oOut.FinalThermal.CoolantTempRise,7:F0} K");
-        Console.WriteLine($"  Throat flux  {oOut.OriginalThermal.ThroatHeatFlux / 1e6,7:F1} MW/m2 -> {oOut.FinalThermal.ThroatHeatFlux / 1e6,7:F1} MW/m2");
-        Console.WriteLine($"  Isp (SL)     {oOut.OriginalDesign.IspSeaLevelS,7:F1} s    -> {oOut.FinalDesign.IspSeaLevelS,7:F1} s");
-        Console.WriteLine();
-        ValidationReport.PrintSummary(oOut.FinalValidation);
+        // Use new iteration log for better output
+        Reporting.IterationLog.PrintConsoleSummary(oOut);
 
         if (!oOut.Converged)
         {
@@ -138,7 +137,7 @@ static class ImpetusApp
             string strIterDir = RepoPaths.DesignDir(oOut.FinalSpec.Name);
             Directory.CreateDirectory(strIterDir);
             string strLogPath = Path.Combine(strIterDir, "iteration-log.md");
-            File.WriteAllText(strLogPath, ValidationReport.BuildIterationLog(oOut));
+            File.WriteAllText(strLogPath, Reporting.IterationLog.Build(oOut));
 
             Console.WriteLine();
             Console.WriteLine($"  New spec:      {strNewSpecPath}");
