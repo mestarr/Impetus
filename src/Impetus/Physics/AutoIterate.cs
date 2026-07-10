@@ -7,6 +7,20 @@ public record IterationStep(int Iteration, string Field, string From, string To,
 
 public record PropellantOption(string Key, string Name, double CoolantRiseK, bool PassesGate);
 
+public record IterationMetrics(
+    int Iteration,
+    EngineSpec Spec,
+    EngineDesign Design,
+    ThermalResult Thermal,
+    ValidationResult Validation,
+    double TotalLengthMM,
+    double IspSeaLevelS,
+    double CoolantTempRiseK,
+    double ThroatHeatFluxMW,
+    int FailCount,
+    int WarnCount
+);
+
 public record IterateOutcome
 {
     public required EngineSpec OriginalSpec { get; init; }
@@ -21,6 +35,8 @@ public record IterateOutcome
     public required IReadOnlyList<PropellantOption> PropellantWhatIf { get; init; }
     public required bool Converged { get; init; }
     public required int Iterations { get; init; }
+    public required IReadOnlyList<IterationMetrics> MetricsHistory { get; init; }
+    public required bool OptimizationMode { get; init; }
 }
 
 /// <summary>
@@ -42,15 +58,19 @@ public static class AutoIterate
     const double fOfStep = 0.1;
     const double fOfFloorFraction = 0.85; // gas tables valid to ~±15% of nominal O/F
 
-    public static IterateOutcome Run(EngineSpec oSpec)
+    public static IterateOutcome Run(EngineSpec oSpec, bool bOptimizeLength = false)
     {
         EngineSpec oCur = oSpec with { Name = BumpRevision(oSpec.Name) };
         List<IterationStep> aoSteps = [];
         List<string> astrUnfixable = [];
+        List<IterationMetrics> aoMetrics = [];
 
         (EngineDesign oDesign, ThermalResult oTherm, ValidationResult oVal) = Evaluate(oCur);
         EngineDesign oOrigDesign = oDesign;
         ThermalResult oOrigTherm = oTherm;
+
+        // Record initial metrics
+        aoMetrics.Add(BuildMetrics(0, oCur, oDesign, oTherm, oVal));
 
         int nIter = 0;
         while (nIter < nMaxIterations && HasFail(oVal))
@@ -64,9 +84,20 @@ public static class AutoIterate
             aoSteps.AddRange(aoMut);
             oCur = oNext;
             (oDesign, oTherm, oVal) = Evaluate(oCur);
+
+            // Record metrics after each iteration
+            aoMetrics.Add(BuildMetrics(nIter, oCur, oDesign, oTherm, oVal));
         }
 
         bool bConverged = !HasFail(oVal);
+
+        // Optimization mode: if converged, try to minimize length
+        if (bConverged && bOptimizeLength)
+        {
+            (oCur, oDesign, oTherm, oVal, aoSteps, aoMetrics) = OptimizeLength(
+                oCur, oDesign, oTherm, oVal, aoSteps, aoMetrics, nIter);
+            bConverged = !HasFail(oVal);
+        }
 
         List<PropellantOption> aoWhatIf = [];
         if (!bConverged && oTherm.CoolantTempRise > oDesign.Gas.MaxCoolantRiseK)
@@ -85,7 +116,9 @@ public static class AutoIterate
             Unfixable = astrUnfixable,
             PropellantWhatIf = aoWhatIf,
             Converged = bConverged,
-            Iterations = nIter
+            Iterations = nIter,
+            MetricsHistory = aoMetrics,
+            OptimizationMode = bOptimizeLength
         };
     }
 
@@ -96,6 +129,89 @@ public static class AutoIterate
         ThermalResult oTherm = ThermalModel.Evaluate(oDesign, oContour);
         ValidationResult oVal = VirtualValidation.Evaluate(oDesign, oTherm);
         return (oDesign, oTherm, oVal);
+    }
+
+    static IterationMetrics BuildMetrics(
+        int nIter,
+        EngineSpec oSpec,
+        EngineDesign oDesign,
+        ThermalResult oTherm,
+        ValidationResult oVal)
+    {
+        return new IterationMetrics(
+            nIter,
+            oSpec,
+            oDesign,
+            oTherm,
+            oVal,
+            (oDesign.ChamberCylinderLength + oDesign.BellLength) * 1000.0, // mm
+            oDesign.IspSeaLevelS,
+            oTherm.CoolantTempRise,
+            oTherm.ThroatHeatFlux / 1e6,
+            oVal.Checks.Count(c => c.Status == CheckStatus.Fail),
+            oVal.Checks.Count(c => c.Status == CheckStatus.Warn)
+        );
+    }
+
+    static (EngineSpec, EngineDesign, ThermalResult, ValidationResult,
+        List<IterationStep>, List<IterationMetrics>) OptimizeLength(
+        EngineSpec oSpec,
+        EngineDesign oDesign,
+        ThermalResult oTherm,
+        ValidationResult oVal,
+        List<IterationStep> aoSteps,
+        List<IterationMetrics> aoMetrics,
+        int nStartIter)
+    {
+        Console.WriteLine("  Optimization mode: minimizing engine length while passing gates...");
+
+        // Try reducing bell fraction (shortens nozzle)
+        double fOriginalBell = oSpec.BellFraction;
+        double fMinBell = 0.3; // Minimum reasonable bell fraction
+        double fBellStep = 0.05;
+
+        EngineSpec oBest = oSpec;
+        EngineDesign oBestDesign = oDesign;
+        ThermalResult oBestTherm = oTherm;
+        ValidationResult oBestVal = oVal;
+        double fBestLength = (oDesign.ChamberCylinderLength + oDesign.BellLength) * 1000.0;
+
+        for (double fBell = fOriginalBell - fBellStep; fBell >= fMinBell; fBell -= fBellStep)
+        {
+            EngineSpec oTry = oSpec with { BellFraction = fBell };
+            (EngineDesign oTryDesign, ThermalResult oTryTherm, ValidationResult oTryVal) = Evaluate(oTry);
+
+            if (!HasFail(oTryVal))
+            {
+                double fTryLength = (oTryDesign.ChamberCylinderLength + oTryDesign.BellLength) * 1000.0;
+                if (fTryLength < fBestLength)
+                {
+                    oBest = oTry;
+                    oBestDesign = oTryDesign;
+                    oBestTherm = oTryTherm;
+                    oBestVal = oTryVal;
+                    fBestLength = fTryLength;
+
+                    aoSteps.Add(new IterationStep(
+                        nStartIter + 1,
+                        "bellFraction",
+                        F(fOriginalBell),
+                        F(fBell),
+                        "optimization: reduce length while passing gates"
+                    ));
+
+                    aoMetrics.Add(BuildMetrics(nStartIter + 1, oTry, oTryDesign, oTryTherm, oTryVal));
+                    Console.WriteLine($"    Bell {F(fBell)} → Length {fBestLength:F0} mm (Isp {oTryDesign.IspSeaLevelS:F1} s)");
+                }
+            }
+            else
+            {
+                // Gates failed, stop reducing bell
+                break;
+            }
+        }
+
+        return (oBest, oBestDesign, oBestTherm, oBestVal, aoSteps, aoMetrics);
     }
 
     static bool HasFail(ValidationResult oVal)
