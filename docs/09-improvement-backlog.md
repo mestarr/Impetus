@@ -98,15 +98,15 @@ build, why, and in what order.
 
 ### 4. Parameter sweep / optimization driver
 
-- **Now:** human edits spec, runs `design` / `test`, reads report.
-- **Upgrade:**
+- [x] **Now:** human edits spec, runs `design` / `test`, reads report.
+- [x] **Upgrade:**
   - New command, e.g. `sweep specs/demo.json --pc 15,20,25 --of 2.0,2.3,2.6`.
   - Grid or random samples over Pc, ε, O/F, `bellFraction`, cooling knobs.
   - Pareto filter: Isp vs coolant ΔT vs engine length.
   - Optional black-box optimizer (Nelder-Mead on 3–4 spec fields with penalty
     objective).
-- **Workflow:** sweep analytically (seconds each); run CFD only on shortlist.
-- **Benefit:** Turns Impetus from “one engine” into a **design-space explorer**.
+- [x] **Workflow:** sweep analytically (seconds each); run CFD only on shortlist.
+- [x] **Benefit:** Turns Impetus from “one engine” into a **design-space explorer**.
 
 ### 5. Stronger `iterate` loop
 
