@@ -110,11 +110,11 @@ build, why, and in what order.
 
 ### 5. Stronger `iterate` loop
 
-- **Now:** rule-based spec mutations until analytic gates pass or hit bounds.
-- **Improvements:**
-  - Include regen solver feedback once it exists.
-  - Optional objective: pass all gates + minimize length.
-  - Richer comparison table across iterations in `iteration-log.md`.
+- [x] **Now:** rule-based spec mutations until analytic gates pass or hit bounds.
+- [x] **Improvements:**
+  - [x] Include regen solver feedback once it exists.
+  - [x] Optional objective: pass all gates + minimize length.
+  - [x] Richer comparison table across iterations in `iteration-log.md`.
 
 ---
 
