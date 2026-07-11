@@ -25,6 +25,7 @@ public record ValidationResult
     public required string Verdict { get; init; }
     public required string VerdictSummary { get; init; }
     public required bool CfdVerified { get; init; }
+    public required ManufacturabilityResult? Manufacturability { get; init; }
 }
 
 /// <summary>
@@ -55,7 +56,8 @@ public static class VirtualValidation
         EngineDesign oDesign,
         ThermalResult oTherm,
         Cfd.CfdResult? oCfd = null,
-        double? fBurnDurationS = null)
+        double? fBurnDurationS = null,
+        ManufacturabilityResult? oManufacturability = null)
     {
         double fBurn = fBurnDurationS ?? fDefaultBurnS;
         List<ValidationCheck> aoChecks = [];
@@ -79,7 +81,7 @@ public static class VirtualValidation
                 "Run: dotnet run --project src/Impetus -- test <spec.json>"));
 
         FeedSystemSizing oFeed = SizeFeedSystem(oDesign, fBurn);
-        (string strVerdict, string strSummary) = Summarize(aoChecks, oCfd is not null);
+        (string strVerdict, string strSummary) = Summarize(aoChecks, oCfd is not null, oManufacturability);
 
         return new ValidationResult
         {
@@ -87,7 +89,8 @@ public static class VirtualValidation
             Feed = oFeed,
             Verdict = strVerdict,
             VerdictSummary = strSummary,
-            CfdVerified = oCfd is not null && oCfd.Converged
+            CfdVerified = oCfd is not null && oCfd.Converged,
+            Manufacturability = oManufacturability
         };
     }
 
@@ -298,10 +301,22 @@ public static class VirtualValidation
     }
 
     static (string Verdict, string Summary) Summarize(
-        IReadOnlyList<ValidationCheck> aoChecks, bool bHasCfd)
+        IReadOnlyList<ValidationCheck> aoChecks, bool bHasCfd, ManufacturabilityResult? oManufacturability)
     {
         int nFail = aoChecks.Count(c => c.Status == CheckStatus.Fail);
         int nWarn = aoChecks.Count(c => c.Status == CheckStatus.Warn);
+
+        // Include manufacturability in verdict
+        if (oManufacturability is not null)
+        {
+            int nMfgFail = oManufacturability.Checks.Count(c => c.Status == CheckStatus.Fail);
+            int nMfgWarn = oManufacturability.Checks.Count(c => c.Status == CheckStatus.Warn);
+
+            if (nMfgFail > 0)
+                nFail += nMfgFail;
+            if (nMfgWarn > 0)
+                nWarn += nMfgWarn;
+        }
 
         if (nFail > 0)
             return ("ITERATE_DESIGN",

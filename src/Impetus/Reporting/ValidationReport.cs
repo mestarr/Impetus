@@ -47,6 +47,32 @@ public static class ValidationReport
         sb.AppendLine();
         sb.AppendLine("Includes Pc + injector Δp + line/valve losses + 1 bar margin.");
         sb.AppendLine();
+
+        // Manufacturability section
+        if (oVal.Manufacturability is not null)
+        {
+            sb.AppendLine("### Manufacturability (LPBF printability)");
+            sb.AppendLine();
+            sb.AppendLine($"**Overall verdict: `{oVal.Manufacturability.OverallVerdict}`**");
+            sb.AppendLine();
+            sb.AppendLine("| Check | Status | Detail |");
+            sb.AppendLine("|---|---|---|");
+            foreach (var oCheck in oVal.Manufacturability.Checks)
+            {
+                sb.AppendLine($"| {oCheck.Name} | {StatusLabel(oCheck.Status)} | {oCheck.Detail} |");
+            }
+            sb.AppendLine();
+            sb.AppendLine("### Recommended manufacturability actions");
+            sb.AppendLine();
+            foreach (var oCheck in oVal.Manufacturability.Checks.Where(c => c.Status != CheckStatus.Pass))
+            {
+                sb.AppendLine($"- **{oCheck.Name}** ({StatusLabel(oCheck.Status)}): {oCheck.Action}");
+            }
+            if (oVal.Manufacturability.Checks.All(c => c.Status == CheckStatus.Pass))
+                sb.AppendLine("- All manufacturability checks passed — geometry is LPBF-printable.");
+            sb.AppendLine();
+        }
+
         sb.AppendLine("### Materials (flight intent)");
         sb.AppendLine();
         sb.AppendLine("| Component | Material | Process |");
@@ -268,6 +294,24 @@ public static class ValidationReport
             };
             Console.WriteLine($"    [{strMark}] {oCheck.Name}");
         }
+
+        // Print manufacturability checks if available
+        if (oVal.Manufacturability is not null)
+        {
+            Console.WriteLine($"  == Manufacturability: {oVal.Manufacturability.OverallVerdict} ==");
+            foreach (var oCheck in oVal.Manufacturability.Checks)
+            {
+                string strMark = oCheck.Status switch
+                {
+                    CheckStatus.Pass => "OK ",
+                    CheckStatus.Warn => "WARN",
+                    CheckStatus.Fail => "FAIL",
+                    _ => "???",
+                };
+                Console.WriteLine($"    [{strMark}] {oCheck.Name}");
+            }
+        }
+
         Console.WriteLine($"  {oVal.VerdictSummary}");
         Console.WriteLine();
     }

@@ -16,9 +16,9 @@ static class ImpetusApp
         if (strCmd == "smoke")
             return RunSmoke();
 
-        if (strCmd is not ("design" or "test" or "all" or "view" or "post" or "validate" or "iterate" or "print" or "sweep" or "optimize"))
+        if (strCmd is not ("design" or "test" or "all" or "view" or "post" or "validate" or "iterate" or "print" or "sweep" or "optimize" or "manufacturability"))
         {
-            Console.WriteLine("usage: impetus design|test|all|view|post|validate|iterate|print|sweep|optimize [spec.json] [args]");
+            Console.WriteLine("usage: impetus design|test|all|view|post|validate|iterate|print|sweep|optimize|manufacturability [spec.json] [args]");
             return 1;
         }
 
@@ -46,6 +46,9 @@ static class ImpetusApp
 
         if (strCmd == "optimize")
             return RunOptimize(oSpec, args);
+
+        if (strCmd == "manufacturability")
+            return RunManufacturability(oSpec, oDesign, oContour);
 
         if (strCmd == "print")
         {
@@ -428,6 +431,51 @@ static class ImpetusApp
         Console.WriteLine("Next steps:");
         Console.WriteLine($"  - Run 'design specs/{strBestSpecName}.json' to generate geometry");
         Console.WriteLine($"  - Run 'test specs/{strBestSpecName}.json' for CFD verification");
+
+        return 0;
+    }
+
+    static int RunManufacturability(EngineSpec oSpec, EngineDesign oDesign, NozzleContour oContour)
+    {
+        Console.WriteLine("Manufacturability analysis: evaluating LPBF printability...");
+
+        Physics.ManufacturabilityResult? oResult = null;
+        Library.Go((float)oSpec.VoxelSizeMM, () =>
+        {
+            ThrusterBuilder oBuilder = new(Library.oLibrary(), oDesign, oContour);
+            Voxels voxEngine = oBuilder.voxBuild();
+            oResult = Physics.ManufacturabilityChecks.Evaluate(voxEngine, oSpec, oContour);
+        });
+
+        if (oResult == null)
+        {
+            Console.WriteLine("  Manufacturability analysis failed - library context issue.");
+            return 1;
+        }
+
+        Console.WriteLine();
+        Console.WriteLine($"  Overall verdict: {oResult.OverallVerdict}");
+        Console.WriteLine();
+
+        foreach (var oCheck in oResult.Checks)
+        {
+            string strStatus = oCheck.Status switch
+            {
+                CheckStatus.Pass => "✅",
+                CheckStatus.Warn => "⚠️",
+                CheckStatus.Fail => "❌",
+                _ => "?"
+            };
+            Console.WriteLine($"  {strStatus} {oCheck.Name}: {oCheck.Detail}");
+            if (oCheck.Status != CheckStatus.Pass)
+                Console.WriteLine($"     Action: {oCheck.Action}");
+        }
+
+        Console.WriteLine();
+        Console.WriteLine("Next steps:");
+        Console.WriteLine("  - Review manufacturability issues above");
+        Console.WriteLine("  - Adjust spec geometry or cooling channels if needed");
+        Console.WriteLine("  - Run 'design' to export STL/3MF for printing");
 
         return 0;
     }
