@@ -23,7 +23,13 @@ static class ImpetusApp
         }
 
         EngineSpec oSpec = EngineSpec.Load(strSpecPath);
+
+        // Apply process-aware defaults
+        oSpec = Physics.ProcessGeometry.ApplyProcessDefaults(oSpec);
+
         Console.WriteLine($"Impetus - loaded spec '{oSpec.Name}' from {strSpecPath}");
+        Console.WriteLine($"  Target process: {oSpec.TargetProcess}");
+        Console.WriteLine($"  Voxel size: {oSpec.VoxelSizeMM:F2} mm");
 
         EngineDesign oDesign = EngineSizing.Size(oSpec);
         NozzleContour oContour = new(oDesign);
