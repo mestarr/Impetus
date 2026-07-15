@@ -14,5 +14,6 @@
     "diameterMM": 1.4,
     "helixTurns": 1.0
   },
+  "targetProcess": "LPBF",
   "voxelSizeMM": 0.4
 }
