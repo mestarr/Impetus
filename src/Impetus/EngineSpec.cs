@@ -3,6 +3,19 @@ using System.Text.Json.Serialization;
 
 namespace Impetus;
 
+/// <summary>
+/// Target manufacturing process for the engine geometry.
+/// Different processes have different constraints on resolution, feature size, and tolerances.
+/// </summary>
+public enum ManufacturingProcess
+{
+    /// <summary>Fused Deposition Modeling (plastic) - for display models only, not hot fire.</summary>
+    FDM,
+
+    /// <summary>Laser Powder Bed Fusion (metal) - for functional regen-cooled engines.</summary>
+    LPBF
+}
+
 public record CoolingSpec
 {
     /// <summary>Number of regenerative cooling channels around the circumference.</summary>
@@ -50,7 +63,11 @@ public record EngineSpec
 
     public CoolingSpec Cooling { get; init; } = new();
 
+    /// <summary>Target manufacturing process (FDM for display, LPBF for metal hot-fire).</summary>
+    public ManufacturingProcess TargetProcess { get; init; } = ManufacturingProcess.LPBF;
+
     /// <summary>Voxel resolution for geometry generation [mm]. Smaller = finer + slower.</summary>
+    /// Auto-set based on TargetProcess if not explicitly specified.</summary>
     public double VoxelSizeMM { get; init; } = 0.4;
 
     /// <summary>Printer bed size [mm] for bed-fit checks in the print report. 0 = 250 mm default.</summary>
@@ -60,13 +77,15 @@ public record EngineSpec
     {
         PropertyNameCaseInsensitive = true,
         ReadCommentHandling = JsonCommentHandling.Skip,
-        AllowTrailingCommas = true
+        AllowTrailingCommas = true,
+        Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) }
     };
 
     private static readonly JsonSerializerOptions s_oJsonWriteOptions = new()
     {
         WriteIndented = true,
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) }
     };
 
     public static EngineSpec Load(string strPath)
