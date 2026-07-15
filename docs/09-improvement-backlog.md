@@ -132,11 +132,11 @@ build, why, and in what order.
 
 ### Process-aware geometry (`targetProcess` in spec)
 
-- **`FDM`** — coarser voxels OK; channels can be representative, not functional.
-- **`LPBF`** — enforce min channel Ø, wall thickness, manifold access.
-- Auto-set `voxelSizeMM` and warnings per process.
+- [x] **`FDM`** — coarser voxels OK; channels can be representative, not functional.
+- [x] **`LPBF`** — enforce min channel Ø, wall thickness, manifold access.
+- [x] **Auto-set `voxelSizeMM` and warnings per process.**
 
-### Better injector geometry
+### TODO Better injector geometry 
 
 - **Now:** hydraulically-sized showerhead — orifice areas, ring pattern, igniter
   port (`ThrusterBuilder`).
