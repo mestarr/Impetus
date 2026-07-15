@@ -122,13 +122,13 @@ build, why, and in what order.
 
 ### Manufacturability checks (natural in PicoGK voxels)
 
-- **Overhang analysis** — compare solid against morphological dilation along −Z
+- [x] **Overhang analysis** — compare solid against morphological dilation along −Z
   (build direction); score flange-down printability.
-- **Minimum wall check** — voxel erosion test; flag walls thinner than spec or
+- [x] **Minimum wall check** — voxel erosion test; flag walls thinner than spec or
   process minimum (e.g. 0.8 mm metal).
-- **Powder / fluid removal** — flood-fill cooling void from manifold exits;
+- [x] **Powder / fluid removal** — flood-fill cooling void from manifold exits;
   detect trapped internal volumes.
-- **Output:** pass/warn/fail in validation report, same style as thermal gates.
+- [x] **Output:** pass/warn/fail in validation report, same style as thermal gates.
 
 ### Process-aware geometry (`targetProcess` in spec)
 
