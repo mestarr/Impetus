@@ -1,3 +1,5 @@
+using Impetus;
+
 namespace Impetus.Physics;
 
 public enum CheckStatus { Pass, Warn, Fail }
@@ -69,8 +71,9 @@ public static class VirtualValidation
         aoChecks.Add(CheckInjectorStability(oDesign));
         aoChecks.Add(CheckExpansionMatch(oDesign));
         aoChecks.Add(CheckThroatHeatFlux(oTherm));
-        aoChecks.Add(CheckCoolingChannels(oDesign.Spec.Cooling));
+        aoChecks.Add(CheckCoolingChannels(oDesign.Spec.Cooling, oDesign.Spec.TargetProcess));
         aoChecks.Add(CheckChamberPressure(oDesign));
+        aoChecks.Add(CheckProcessRequirements(oDesign.Spec));
         if (oCfd is not null)
             aoChecks.Add(CheckCfdAgreement(oDesign, oCfd));
         else
@@ -221,19 +224,47 @@ public static class VirtualValidation
             "Reduce Pc, enlarge throat, or upgrade cooling geometry.");
     }
 
-    static ValidationCheck CheckCoolingChannels(CoolingSpec oCool)
+    static ValidationCheck CheckCoolingChannels(CoolingSpec oCool, ManufacturingProcess eProcess)
     {
-        if (oCool.DiameterMM >= 1.0 && oCool.Count >= MinChannelCount)
+        double fMinChannel = ProcessGeometry.GetMinChannelDiameter(eProcess);
+        string strProcessName = eProcess.ToString();
+
+        if (oCool.DiameterMM >= fMinChannel && oCool.Count >= MinChannelCount)
             return new("Cooling channel manufacturability", CheckStatus.Pass,
-                $"{oCool.Count} × Ø{oCool.DiameterMM:F1} mm — printable in metal LPBF.",
+                $"{oCool.Count} × Ø{oCool.DiameterMM:F1} mm — suitable for {strProcessName}.",
                 "None.");
-        if (oCool.DiameterMM >= MinChannelDiameterMM)
+        if (oCool.DiameterMM >= fMinChannel * 0.8)
             return new("Cooling channel manufacturability", CheckStatus.Warn,
-                $"{oCool.Count} × Ø{oCool.DiameterMM:F1} mm — tight for LPBF; verify powder removal.",
-                "Open both manifolds for cleaning; consider Ø ≥ 1.0 mm.");
+                $"{oCool.Count} × Ø{oCool.DiameterMM:F1} mm — tight for {strProcessName}; verify manufacturability.",
+                $"Increase cooling.diameterMM to at least {fMinChannel} mm.");
         return new("Cooling channel manufacturability", CheckStatus.Fail,
-            $"{oCool.Count} × Ø{oCool.DiameterMM:F1} mm — below practical metal-AM channel size.",
-            "Increase cooling.diameterMM to at least 0.8 mm (1.0+ preferred).");
+            $"{oCool.Count} × Ø{oCool.DiameterMM:F1} mm — below minimum for {strProcessName}.",
+            $"Increase cooling.diameterMM to at least {fMinChannel} mm.");
+    }
+
+    static ValidationCheck CheckProcessRequirements(EngineSpec oSpec)
+    {
+        (bool bMeets, List<string> aoFailures) = ProcessGeometry.ValidateProcessRequirements(oSpec);
+
+        if (bMeets)
+        {
+            // Check for warnings
+            List<string> aoWarnings = ProcessGeometry.GetProcessWarnings(oSpec);
+            if (aoWarnings.Count > 0)
+            {
+                return new("Process requirements", CheckStatus.Warn,
+                    $"Spec meets {oSpec.TargetProcess} requirements with warnings: {string.Join("; ", aoWarnings)}",
+                    "Review warnings above; consider adjusting spec if needed.");
+            }
+
+            return new("Process requirements", CheckStatus.Pass,
+                $"Spec meets all {oSpec.TargetProcess} requirements.",
+                "None.");
+        }
+
+        return new("Process requirements", CheckStatus.Fail,
+            $"Spec fails {oSpec.TargetProcess} requirements: {string.Join("; ", aoFailures)}",
+            "Adjust cooling channels, wall thickness, or voxel size to meet process requirements.");
     }
 
     static ValidationCheck CheckChamberPressure(EngineDesign o)
