@@ -174,16 +174,25 @@ static class ImpetusApp
         voxEngine.BoolAdd(oParts.Flange);
 
         Mesh mshEngine = voxEngine.mshAsMesh();
+
+        // Define materials for colored 3MF export
+        var matBody = new Geometry.MaterialInfo("Copper", "#B87333", 1.0);
+        var matInjector = new Geometry.MaterialInfo("Inconel", "#A0A0A0", 1.0);
+        var matFlange = new Geometry.MaterialInfo("Aluminum", "#D4D4D4", 1.0);
+
         MeshExport.SaveAssemblyMeshFiles(
             mshEngine,
             [
-                new MeshExport.ThreeMfPart("body", oParts.Body.mshAsMesh()),
-                new MeshExport.ThreeMfPart("injector", oParts.Injector.mshAsMesh()),
-                new MeshExport.ThreeMfPart("flange", oParts.Flange.mshAsMesh()),
+                new MeshExport.ThreeMfPart("body", oParts.Body.mshAsMesh(), matBody),
+                new MeshExport.ThreeMfPart("injector", oParts.Injector.mshAsMesh(), matInjector),
+                new MeshExport.ThreeMfPart("flange", oParts.Flange.mshAsMesh(), matFlange),
             ],
             Path.Combine(strOutDir, "engine.stl"),
             Path.Combine(strOutDir, "engine.3mf"),
             oSpec.Name);
+
+        // Also export OBJ for viewers that don't support 3MF
+        MeshExport.SaveToObjFile(mshEngine, Path.Combine(strOutDir, "engine.obj"), oSpec.Name);
 
         Voxels voxCutBody = oBuilder.voxCutaway(oParts.Body);
         Voxels voxCutInjector = oBuilder.voxCutaway(oParts.Injector);
@@ -196,18 +205,23 @@ static class ImpetusApp
         MeshExport.SaveAssemblyMeshFiles(
             voxCut.mshAsMesh(),
             [
-                new MeshExport.ThreeMfPart("body", voxCutBody.mshAsMesh()),
-                new MeshExport.ThreeMfPart("injector", voxCutInjector.mshAsMesh()),
-                new MeshExport.ThreeMfPart("flange", voxCutFlange.mshAsMesh()),
+                new MeshExport.ThreeMfPart("body", voxCutBody.mshAsMesh(), matBody),
+                new MeshExport.ThreeMfPart("injector", voxCutInjector.mshAsMesh(), matInjector),
+                new MeshExport.ThreeMfPart("flange", voxCutFlange.mshAsMesh(), matFlange),
             ],
             Path.Combine(strOutDir, "engine_cutaway.stl"),
             Path.Combine(strOutDir, "engine_cutaway.3mf"),
             oSpec.Name + " (cutaway)");
 
+        // Export cutaway OBJ as well
+        MeshExport.SaveToObjFile(voxCut.mshAsMesh(), Path.Combine(strOutDir, "engine_cutaway.obj"), oSpec.Name + " (cutaway)");
+
         Console.WriteLine($"  -> {Path.Combine(strOutDir, "engine.stl")}");
-        Console.WriteLine($"  -> {Path.Combine(strOutDir, "engine.3mf")} (body + injector + flange)");
+        Console.WriteLine($"  -> {Path.Combine(strOutDir, "engine.3mf")} (colored body + injector + flange)");
+        Console.WriteLine($"  -> {Path.Combine(strOutDir, "engine.obj")} (for OBJ viewers)");
         Console.WriteLine($"  -> {Path.Combine(strOutDir, "engine_cutaway.stl")}");
-        Console.WriteLine($"  -> {Path.Combine(strOutDir, "engine_cutaway.3mf")} (body + injector + flange)");
+        Console.WriteLine($"  -> {Path.Combine(strOutDir, "engine_cutaway.3mf")} (colored cutaway)");
+        Console.WriteLine($"  -> {Path.Combine(strOutDir, "engine_cutaway.obj")} (cutaway for OBJ viewers)");
     }
 
     static (string Report, ValidationResult Validation) RunCfd(
