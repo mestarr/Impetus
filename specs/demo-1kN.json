@@ -14,6 +14,16 @@
     "diameterMM": 1.4,
     "helixTurns": 1.0
   },
+  "injector": {
+    "type": "CoaxialSwirl",
+    "elementCount": 12,
+    "orificeDiameterMM": 1.0,
+    "outerDiameterMM": 2.0,
+    "innerDiameterMM": 1.2,
+    "filmCooling": true,
+    "filmOrificeDiameterMM": 0.8,
+    "filmOrificeCount": 24
+  },
   "targetProcess": "LPBF",
   "voxelSizeMM": 0.4
 }
