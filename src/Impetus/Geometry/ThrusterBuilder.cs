@@ -1,5 +1,6 @@
 using System.Numerics;
 using Impetus.Physics;
+using Impetus;
 using PicoGK;
 
 namespace Impetus.Geometry;
@@ -46,7 +47,7 @@ public class ThrusterBuilder
 
         InjectorDims oDims = GetInjectorDims();
         Console.WriteLine("  [geo] injector plate...");
-        Voxels voxInjector = voxInjectorPlate(oDims);
+        Voxels voxInjector = voxInjectorPlate(oDims, m_oDesign.Spec.Injector);
         Console.WriteLine("  [geo] mounting flange...");
         Voxels voxMountFlange = voxMountingFlange(oDims);
         Console.WriteLine("  [geo] done");
@@ -209,9 +210,17 @@ public class ThrusterBuilder
             fRcMM);
     }
 
-    /// <summary>Showerhead injector plate (orifices only — no flange ring or bolt holes).</summary>
-    Voxels voxInjectorPlate(InjectorDims oDims)
+    /// <summary>Injector plate (pattern depends on injector type).</summary>
+    Voxels voxInjectorPlate(InjectorDims oDims, InjectorSpec oInjectorSpec)
     {
+        // Use new InjectorBuilder for advanced injector types
+        if (oInjectorSpec.Type != InjectorType.Showerhead)
+        {
+            InjectorBuilder oBuilder = new(m_lib, m_oDesign, oInjectorSpec);
+            return oBuilder.voxBuild();
+        }
+
+        // Legacy showerhead implementation for backward compatibility
         Lattice latPlate = new(m_lib);
         latPlate.AddBeam(
             new Vector3(0, 0, (float)-oDims.PlateThicknessMM),

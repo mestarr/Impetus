@@ -16,6 +16,22 @@ public enum ManufacturingProcess
     LPBF
 }
 
+/// <summary>
+/// Injector type for the engine.
+/// Different injector patterns have different stability, mixing, and manufacturability characteristics.
+/// </summary>
+public enum InjectorType
+{
+    /// <summary>Simple showerhead with orifices - simplest but least stable. Good for display models.</summary>
+    Showerhead,
+
+    /// <summary>Coaxial swirl elements - good mixing and stability, common in LOX/kerosene engines.</summary>
+    CoaxialSwirl,
+
+    /// <summary>Impinging doublet elements - excellent atomization, good for hypergolic propellants.</summary>
+    ImpingingDoublet
+}
+
 public record CoolingSpec
 {
     /// <summary>Number of regenerative cooling channels around the circumference.</summary>
@@ -26,6 +42,33 @@ public record CoolingSpec
 
     /// <summary>Total helical turns each channel makes from manifold to manifold. 0 = straight axial channels.</summary>
     public double HelixTurns { get; init; } = 1.0;
+}
+
+public record InjectorSpec
+{
+    /// <summary>Injector type pattern.</summary>
+    public InjectorType Type { get; init; } = InjectorType.Showerhead;
+
+    /// <summary>Number of injector elements (orifices or element groups).</summary>
+    public int ElementCount { get; init; } = 12;
+
+    /// <summary>Central orifice diameter in mm (for showerhead).</summary>
+    public double OrificeDiameterMM { get; init; } = 1.0;
+
+    /// <summary>Outer injector diameter in mm (for coaxial swirl).</summary>
+    public double OuterDiameterMM { get; init; } = 2.0;
+
+    /// <summary>Inner injector diameter in mm (for coaxial swirl).</summary>
+    public double InnerDiameterMM { get; init; } = 1.2;
+
+    /// <summary>Whether to include film cooling orifice ring.</summary>
+    public bool FilmCooling { get; init; } = false;
+
+    /// <summary>Film cooling orifice diameter in mm.</summary>
+    public double FilmOrificeDiameterMM { get; init; } = 0.8;
+
+    /// <summary>Number of film cooling orifices.</summary>
+    public int FilmOrificeCount { get; init; } = 24;
 }
 
 /// <summary>
@@ -62,6 +105,8 @@ public record EngineSpec
     public double WallThicknessMM { get; init; } = 3.0;
 
     public CoolingSpec Cooling { get; init; } = new();
+
+    public InjectorSpec Injector { get; init; } = new();
 
     /// <summary>Target manufacturing process (FDM for display, LPBF for metal hot-fire).</summary>
     public ManufacturingProcess TargetProcess { get; init; } = ManufacturingProcess.LPBF;
