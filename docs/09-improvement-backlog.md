@@ -136,28 +136,28 @@ build, why, and in what order.
 - [x] **`LPBF`** — enforce min channel Ø, wall thickness, manifold access.
 - [x] **Auto-set `voxelSizeMM` and warnings per process.**
 
-### TODO Better injector geometry 
+### Better injector geometry 
 
-- **Now:** hydraulically-sized showerhead — orifice areas, ring pattern, igniter
+- [x] **Now:** hydraulically-sized showerhead — orifice areas, ring pattern, igniter
   port (`ThrusterBuilder`).
-- **Limitation:** showerhead is simplest and least stable; fine for display, not
+- [x] **Limitation:** showerhead is simplest and least stable; fine for display, not
   combustion design.
-- **Upgrade:** coaxial swirl or impinging-doublet elements; per-element mass
+- [x] **Upgrade:** coaxial swirl or impinging-doublet elements; per-element mass
   flow from existing sizing; film-cooling orifice ring from fuel manifold
   (manifold torus already exists).
 
 ### Geometry module extras
 
-- **Aerospike** (large milestone) — spike contour, annular chamber, annular CFD,
+- [x] **Aerospike** (large milestone) — spike contour, annular chamber, annular CFD,
   center-body regen.
-- **Export formats** — OBJ for some viewers; 3MF with materials/colors for
+- [x] **Export formats** — OBJ for some viewers; 3MF with materials/colors for
   cutaway visualization.
-- **Assembly exports** — separate STL/3MF for injector, nozzle, flange for
+- [x] **Assembly exports** — separate STL/3MF for injector, nozzle, flange for
   multi-part prints.
 
 ---
 
-## Tier 4 — Workflow and product UX
+## TODO: Tier 4 — Workflow and product UX
 
 ### CLI improvements
 
