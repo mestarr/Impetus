@@ -16,11 +16,17 @@ static class ImpetusApp
         if (strCmd == "smoke")
             return RunSmoke();
 
-        if (strCmd is not ("design" or "test" or "all" or "view" or "post" or "validate" or "iterate" or "print" or "sweep" or "optimize" or "manufacturability"))
+        if (strCmd is not ("design" or "test" or "all" or "view" or "post" or "validate" or "iterate" or "print" or "sweep" or "optimize" or "manufacturability" or "diff" or "export-only"))
         {
-            Console.WriteLine("usage: impetus design|test|all|view|post|validate|iterate|print|sweep|optimize|manufacturability [spec.json] [args]");
+            Console.WriteLine("usage: impetus design|test|all|view|post|validate|iterate|print|sweep|optimize|manufacturability|diff|export-only [spec.json] [args]");
             return 1;
         }
+
+        if (strCmd == "diff")
+            return DiffCommand.Run(args);
+
+        if (strCmd == "export-only")
+            return ExportOnlyCommand.Run(args);
 
         EngineSpec oSpec = EngineSpec.Load(strSpecPath);
 
