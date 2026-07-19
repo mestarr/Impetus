@@ -161,16 +161,16 @@ build, why, and in what order.
 
 ### CLI improvements
 
-- **`sweep`** — parameter grids (see Tier 2).
-- **`print`** — slicer-oriented summary + bed fit.
-- **`diff`** — compare two `report.md` files or two specs side by side.
-- **`export-only`** — regenerate 3MF/STL from cached voxels (optional voxel
+- [x] **`sweep`** — parameter grids (see Tier 2).
+- [x] **`print`** — slicer-oriented summary + bed fit.
+- [x] **`diff`** — compare two `report.md` files or two specs side by side.
+- [x] **`export-only`** — regenerate 3MF/STL from cached voxels (optional voxel
   cache).
 
 ### Viewer and sharing
 
-- **`view` needs GPU** — fails on remote desktop.
-- **Alternatives:** headless cutaway screenshot in report; simple HTML/WebGL
+- [x] **`view` needs GPU** — fails on remote desktop.
+- [x] **Alternatives:** headless cutaway screenshot in report; simple HTML/WebGL
   viewer for STL/3MF; ParaView for `flow.vtu` (already documented).
 
 ### Feed system and hot-fire workflow
