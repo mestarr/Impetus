@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text;
 using Impetus.Cfd;
 using Impetus.Physics;
+using Impetus.Geometry;
 
 namespace Impetus.Reporting;
 
@@ -44,6 +45,12 @@ public static class DesignReport
         sb.AppendLine($"| Exit Mach | {F(o.ExitMach, "F2")} |");
         sb.AppendLine($"| Exit pressure | {F(o.ExitPressure / 1e5, "F3")} bar |");
         sb.AppendLine($"| Gas model | CEA table: Tc {F(o.Gas.Tc, "F0")} K, γ {F(o.Gas.Gamma, "F3")}, M {F(o.Gas.MolarMass * 1000, "F1")} g/mol |");
+        sb.AppendLine();
+        sb.AppendLine("## Cross-Section (Headless)");
+        sb.AppendLine();
+        sb.AppendLine("```");
+        sb.AppendLine(GenerateCrossSection(o));
+        sb.AppendLine("```");
         sb.AppendLine();
         sb.AppendLine("## Geometry");
         sb.AppendLine();
@@ -141,4 +148,39 @@ public static class DesignReport
     static string F(double f, string strFmt) => f.ToString(strFmt, CultureInfo.InvariantCulture);
     static string MM(double fMeters) => F(fMeters * 1000.0, "F1");
     static string DEG(double fRad) => F(fRad * 180.0 / Math.PI, "F1");
+
+    static string GenerateCrossSection(EngineDesign o)
+    {
+        // Generate simple ASCII cross-section
+        var sb = new StringBuilder();
+        double fChamberR = o.ChamberRadius * 1000.0;
+        double fThroatR = o.ThroatRadius * 1000.0;
+        double fExitR = o.ExitRadius * 1000.0;
+        double fLength = (o.ChamberCylinderLength + o.BellLength) * 1000.0;
+
+        sb.AppendLine("        ^");
+        sb.AppendLine("        |");
+        sb.AppendLine("   +----+----+");
+        sb.AppendLine("   |         |");
+        sb.AppendLine("   | Chamber |");
+        sb.AppendLine("   |         |");
+        sb.AppendLine("   +---+---+");
+        sb.AppendLine("      \\ /");
+        sb.AppendLine("       v  (throat)");
+        sb.AppendLine("      / \\");
+        sb.AppendLine("     /   \\");
+        sb.AppendLine("    /     \\");
+        sb.AppendLine("   /  Bell \\");
+        sb.AppendLine("  /         \\");
+        sb.AppendLine(" +-----------+");
+        sb.AppendLine("     |");
+        sb.AppendLine("     v (exit)");
+        sb.AppendLine();
+        sb.AppendLine($"Chamber Ø: {fChamberR * 2:F1} mm");
+        sb.AppendLine($"Throat Ø:  {fThroatR * 2:F1} mm");
+        sb.AppendLine($"Exit Ø:    {fExitR * 2:F1} mm");
+        sb.AppendLine($"Length:    {fLength:F1} mm");
+
+        return sb.ToString();
+    }
 }
