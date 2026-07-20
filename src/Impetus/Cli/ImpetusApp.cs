@@ -3,6 +3,7 @@ using Impetus.Geometry;
 using Impetus.Physics;
 using Impetus.Reporting;
 using PicoGK;
+using System.Text.Json;
 
 namespace Impetus.Cli;
 
@@ -16,9 +17,9 @@ static class ImpetusApp
         if (strCmd == "smoke")
             return RunSmoke();
 
-        if (strCmd is not ("design" or "test" or "all" or "view" or "post" or "validate" or "iterate" or "print" or "sweep" or "optimize" or "manufacturability" or "diff" or "export-only"))
+        if (strCmd is not ("design" or "test" or "all" or "view" or "post" or "validate" or "iterate" or "print" or "sweep" or "optimize" or "manufacturability" or "diff" or "export-only" or "post-hotfire"))
         {
-            Console.WriteLine("usage: impetus design|test|all|view|post|validate|iterate|print|sweep|optimize|manufacturability|diff|export-only [spec.json] [args]");
+            Console.WriteLine("usage: impetus design|test|all|view|post|validate|iterate|print|sweep|optimize|manufacturability|diff|export-only|post-hotfire [spec.json] [args]");
             return 1;
         }
 
@@ -27,6 +28,9 @@ static class ImpetusApp
 
         if (strCmd == "export-only")
             return ExportOnlyCommand.Run(args);
+
+        if (strCmd == "post-hotfire")
+            return PostHotFireCommand.Run(args);
 
         EngineSpec oSpec = EngineSpec.Load(strSpecPath);
 
@@ -316,8 +320,10 @@ static class ImpetusApp
         File.WriteAllText(
             Path.Combine(strOutDir, "hotfire-plan.md"),
             ValidationReport.BuildHotFirePlan(oDesign, oTherm, oValidation));
+        ChecklistReport.SaveChecklist(oDesign, oValidation, strOutDir);
         Console.WriteLine($"Report:       {Path.Combine(strOutDir, "report.md")}");
         Console.WriteLine($"Hot-fire plan: {Path.Combine(strOutDir, "hotfire-plan.md")}");
+        Console.WriteLine($"Checklist:    {Path.Combine(strOutDir, "checklist.md")}");
     }
 
     static void RunViewer(EngineSpec oSpec, EngineDesign oDesign, NozzleContour oContour)
