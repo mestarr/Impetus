@@ -1,0 +1,30 @@
+{
+  "name": "IMP-1K-A-v2",
+  "thrustN": 950,
+  "chamberPressureBar": 20,
+  "ambientPressureBar": 1.01325,
+  "propellants": "LOX_Kerosene",
+  "ofRatio": 2.3,
+  "expansionRatio": 0,
+  "bellFraction": 0.8,
+  "contractionRatio": 4,
+  "wallThicknessMM": 3,
+  "cooling": {
+    "count": 24,
+    "diameterMM": 1.4,
+    "helixTurns": 1
+  },
+  "injector": {
+    "type": "coaxialSwirl",
+    "elementCount": 12,
+    "orificeDiameterMM": 1,
+    "outerDiameterMM": 2,
+    "innerDiameterMM": 1.2,
+    "filmCooling": true,
+    "filmOrificeDiameterMM": 0.8,
+    "filmOrificeCount": 24
+  },
+  "targetProcess": "lpbf",
+  "voxelSizeMM": 0.4,
+  "printerBedMM": 250
+}
