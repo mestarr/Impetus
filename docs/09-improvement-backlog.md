@@ -175,17 +175,17 @@ build, why, and in what order.
 
 ### Feed system and hot-fire workflow
 
-- **Partially implemented:** `VirtualValidation` sizes tanks/lines/burn;
+- [x] **Partially implemented:** `VirtualValidation` sizes tanks/lines/burn;
   `hotfire-plan.md`.
-- **Improve:** link validation failures to concrete spec edits; checklist export;
+- [x] **Improve:** link validation failures to concrete spec edits; checklist export;
   post-hot-fire template to paste measured thrust/Isp into a new spec revision.
 
 ### Spec schema extensions
 
-- **`printerBedMM`** — auto bed-fit in report.
-- **`targetProcess`** — `FDM` vs `LPBF`.
-- **`maxCoolantRiseK`** — per-fuel override.
-- **`burnDurationS`** — already used in feed sizing; expose in spec JSON docs.
+- [x] **`printerBedMM`** — auto bed-fit in report.
+- [x] **`targetProcess`** — `FDM` vs `LPBF`.
+- [x] **`maxCoolantRiseK`** — per-fuel override.
+- [x] **`burnDurationS`** — already used in feed sizing; expose in spec JSON docs.
 
 ---
 
