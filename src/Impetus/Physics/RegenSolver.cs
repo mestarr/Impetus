@@ -34,6 +34,9 @@ public static class RegenSolver
         double fRecovery = Math.Pow(fPr, 1.0 / 3.0);
         double fRCurv = 0.5 * (1.5 + 0.382) * oDesign.ThroatRadius;
 
+        // Film cooling effectiveness (if enabled)
+        double fFilmEffectiveness = ComputeFilmCoolingEffectiveness(oDesign);
+
         double fC = 0.026 / Math.Pow(fDt, 0.2)
                   * (Math.Pow(fMu, 0.2) * oGas.Cp / Math.Pow(fPr, 0.6))
                   * Math.Pow(oDesign.Spec.Pc / oDesign.CStar, 0.8)
@@ -44,6 +47,9 @@ public static class RegenSolver
         double fChanD = oCool.DiameterMM * 1e-3;
         double fAChan = Math.PI * fChanD * fChanD / 4.0;
         int nChan = oCool.Count;
+
+        // Adjust coolant flow for film cooling (film fuel doesn't go through regen)
+        double fMdotCoolant = oDesign.MassFlowFuel * (1.0 - oDesign.FilmCoolingFraction);
 
         double fZEnd = oContour.ExitZ * fZEndFraction;
         List<ContourPoint> aoPath = oContour.Resampled(120, fZStart, fZEnd);
@@ -79,6 +85,13 @@ public static class RegenSolver
             double fStag = 1.0 + 0.5 * (g - 1.0) * fM * fM;
             double fTaw = oGas.Tc * (1.0 + fRecovery * 0.5 * (g - 1.0) * fM * fM) / fStag;
 
+            // Apply film cooling effectiveness to reduce adiabatic wall temperature
+            if (fFilmEffectiveness > 0)
+            {
+                double fTfilm = CoolantInletTempK; // Film coolant temperature (fuel inlet)
+                fTaw = fTfilm + fFilmEffectiveness * (fTaw - fTfilm);
+            }
+
             double fTw = fTc + 200.0;
             double fQ = 0;
             for (int nSub = 0; nSub < 6; nSub++)
@@ -87,7 +100,7 @@ public static class RegenSolver
                     Math.Pow(0.5 * fTw / oGas.Tc * fStag + 0.5, 0.68)
                     * Math.Pow(fStag, 0.12));
                 double fHg = fC * Math.Pow(1.0 / fAreaRatio, 0.9) * fSigma;
-                double fHc = CoolantSideCoeff(oGas, fTc, oDesign.MassFlowFuel, nChan, fAChan, fChanD);
+                double fHc = CoolantSideCoeff(oGas, fTc, fMdotCoolant, nChan, fAChan, fChanD);
 
                 fQ = (fTaw - fTc) / (1.0 / fHg + fLinerM / LinerConductivityWmK + 1.0 / fHc);
                 fTw = fTc + fQ * (1.0 / fHc + 0.5 * fLinerM / LinerConductivityWmK);
@@ -104,14 +117,14 @@ public static class RegenSolver
                 fThroatWall = fTw;
             }
 
-            fTc += fDQ / (oDesign.MassFlowFuel * oGas.FuelCp);
-            fDpTotal += ChannelDpSegment(oGas, oDesign.MassFlowFuel, nChan, fAChan, fChanD, fDs);
+            fTc += fDQ / (fMdotCoolant * oGas.FuelCp);
+            fDpTotal += ChannelDpSegment(oGas, fMdotCoolant, nChan, fAChan, fChanD, fDs);
 
             aoStations.Add(new(oPt.Z, oPt.R, fM, fQ, fTw, fTc, fPc - fDpTotal));
             oPrev = oPt;
         }
 
-        double fMdotChan = oDesign.MassFlowFuel / nChan;
+        double fMdotChan = fMdotCoolant / nChan;
         double fV = fMdotChan / (oGas.FuelDensity * fAChan);
 
         return new ThermalResult
@@ -232,5 +245,25 @@ public static class RegenSolver
             _ => 0.14,
         };
         return fKRef * Math.Pow(fT / 300.0, 0.7);
+    }
+
+    /// <summary>
+    /// Compute film cooling effectiveness based on film cooling fraction and geometry.
+    /// Uses a simplified correlation: η = 1 - exp(-C * (m_film/m_total))
+    /// where C ≈ 2.0 for typical film cooling configurations.
+    /// </summary>
+    static double ComputeFilmCoolingEffectiveness(EngineDesign oDesign)
+    {
+        if (oDesign.FilmCoolingFraction <= 0.0)
+            return 0.0;
+
+        double fFilmFraction = oDesign.FilmCoolingFraction;
+
+        // Simplified effectiveness correlation based on film flow fraction
+        // Higher film fraction = better cooling, but diminishing returns
+        double fEffectiveness = 1.0 - Math.Exp(-2.0 * fFilmFraction);
+
+        // Cap effectiveness at reasonable maximum (film cooling can't eliminate all heat)
+        return Math.Min(fEffectiveness, 0.7);
     }
 }
