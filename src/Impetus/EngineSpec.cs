@@ -69,6 +69,9 @@ public record InjectorSpec
 
     /// <summary>Number of film cooling orifices.</summary>
     public int FilmOrificeCount { get; init; } = 24;
+
+    /// <summary>Fraction of total fuel flow diverted to film cooling (0.0 = none, 0.1 = 10%).</summary>
+    public double FilmCoolingFraction { get; init; } = 0.0;
 }
 
 /// <summary>

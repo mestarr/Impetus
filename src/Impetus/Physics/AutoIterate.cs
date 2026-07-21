@@ -300,15 +300,34 @@ public static class AutoIterate
         // --- Peak wall temperature (1D regen) --------------------------------
         if (oTherm.PeakWallTempK > RegenSolver.MaxWallTempK)
         {
-            CoolingSpec oSized = RegenSolver.SizeChannelsForWallTemp(
-                oDesign, new NozzleContour(oDesign), n.Cooling);
-            if (oSized.Count != n.Cooling.Count || Math.Abs(oSized.DiameterMM - n.Cooling.DiameterMM) > 1e-6)
+            // Try film cooling first if not enabled
+            if (n.Injector.FilmCoolingFraction == 0.0)
             {
-                ao.Add(new(nIter, "cooling",
-                    $"{n.Cooling.Count}x{n.Cooling.DiameterMM:F1}mm",
-                    $"{oSized.Count}x{oSized.DiameterMM:F1}mm",
-                    $"peak wall {oTherm.PeakWallTempK:F0} K > {RegenSolver.MaxWallTempK:F0} K"));
-                n = n with { Cooling = oSized };
+                ao.Add(new(nIter, "injector.filmCoolingFraction", "0.0", "0.05",
+                    $"peak wall {oTherm.PeakWallTempK:F0} K > {RegenSolver.MaxWallTempK:F0} K — enable film cooling"));
+                n = n with { Injector = n.Injector with { FilmCoolingFraction = 0.05, FilmCooling = true } };
+            }
+            // Increase film cooling fraction if already enabled but insufficient
+            else if (n.Injector.FilmCoolingFraction < 0.15)
+            {
+                double fNew = Math.Min(n.Injector.FilmCoolingFraction + 0.05, 0.15);
+                ao.Add(new(nIter, "injector.filmCoolingFraction", F(n.Injector.FilmCoolingFraction), F(fNew),
+                    $"peak wall {oTherm.PeakWallTempK:F0} K > {RegenSolver.MaxWallTempK:F0} K — increase film cooling"));
+                n = n with { Injector = n.Injector with { FilmCoolingFraction = fNew } };
+            }
+            // Fall back to channel sizing if film cooling maxed out
+            else
+            {
+                CoolingSpec oSized = RegenSolver.SizeChannelsForWallTemp(
+                    oDesign, new NozzleContour(oDesign), n.Cooling);
+                if (oSized.Count != n.Cooling.Count || Math.Abs(oSized.DiameterMM - n.Cooling.DiameterMM) > 1e-6)
+                {
+                    ao.Add(new(nIter, "cooling",
+                        $"{n.Cooling.Count}x{n.Cooling.DiameterMM:F1}mm",
+                        $"{oSized.Count}x{oSized.DiameterMM:F1}mm",
+                        $"peak wall {oTherm.PeakWallTempK:F0} K > {RegenSolver.MaxWallTempK:F0} K (film cooling at max)"));
+                    n = n with { Cooling = oSized };
+                }
             }
         }
 
