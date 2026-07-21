@@ -65,9 +65,10 @@ public static class VirtualValidation
         double fBurn = fBurnDurationS ?? fDefaultBurnS;
         List<ValidationCheck> aoChecks = [];
 
-        aoChecks.Add(CheckCoolantRise(oDesign, oTherm));
+        aoChecks.Add(CheckCoolantRise(oTherm, oDesign));
         aoChecks.Add(CheckCoolantVelocity(oTherm));
         aoChecks.Add(CheckWallTemperature(oTherm));
+        aoChecks.Add(CheckFilmCooling(oDesign, oTherm));
         aoChecks.Add(CheckInjectorStiffness(oDesign));
         aoChecks.Add(CheckInjectorStability(oDesign));
         aoChecks.Add(CheckExpansionMatch(oDesign));
@@ -99,7 +100,7 @@ public static class VirtualValidation
         };
     }
 
-    static ValidationCheck CheckCoolantRise(EngineDesign o, ThermalResult oTherm)
+    static ValidationCheck CheckCoolantRise(ThermalResult oTherm, EngineDesign o)
     {
         // Per-fuel coking / boiling / decomposition margin on the bulk rise;
         // two thirds of the limit is the comfortable band.
@@ -340,6 +341,42 @@ public static class VirtualValidation
             $"Thrust {fDevThrust:F1}% / mass flow {fDevMdot:F1}% deviation — analytic and CFD disagree.",
             "Do not hot-fire until nozzle sizing is reconciled.",
                 null);
+    }
+
+    static ValidationCheck CheckFilmCooling(EngineDesign o, ThermalResult oTherm)
+    {
+        if (o.FilmCoolingFraction <= 0.0)
+            return new("Film cooling", CheckStatus.Pass,
+                "Film cooling not enabled.",
+                "None.",
+                "injector");
+
+        double fFilmFraction = o.FilmCoolingFraction;
+        double fFilmFlow = o.FilmCoolingMassFlow;
+
+        if (fFilmFraction > 0.15)
+            return new("Film cooling", CheckStatus.Warn,
+                $"Film cooling uses {fFilmFraction * 100:F1}% of fuel flow — may significantly reduce Isp.",
+                "Consider reducing filmCoolingFraction if wall temperatures are acceptable.",
+                "injector");
+
+        if (fFilmFraction < 0.02)
+            return new("Film cooling", CheckStatus.Warn,
+                $"Film cooling uses only {fFilmFraction * 100:F1}% of fuel flow — may not provide significant cooling benefit.",
+                "Increase filmCoolingFraction or disable film cooling if not needed.",
+                "injector");
+
+        // Check if film cooling is actually helping with wall temperatures
+        if (oTherm.PeakWallTempK > RegenSolver.MaxWallTempK)
+            return new("Film cooling", CheckStatus.Warn,
+                $"Peak wall temperature {oTherm.PeakWallTempK:F0} K still exceeds limit despite film cooling.",
+                "Increase filmCoolingFraction or improve regen cooling (channel count/diameter).",
+                "injector");
+
+        return new("Film cooling", CheckStatus.Pass,
+            $"Film cooling at {fFilmFraction * 100:F1}% fuel flow — wall temperatures acceptable.",
+            "None.",
+            "injector");
     }
 
     static FeedSystemSizing SizeFeedSystem(EngineDesign o, double fBurnS)
