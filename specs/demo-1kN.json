@@ -22,7 +22,8 @@
     "innerDiameterMM": 1.2,
     "filmCooling": true,
     "filmOrificeDiameterMM": 0.8,
-    "filmOrificeCount": 24
+    "filmOrificeCount": 24,
+    "filmCoolingFraction": 0.05
   },
   "targetProcess": "LPBF",
   "voxelSizeMM": 0.4

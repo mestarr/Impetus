@@ -41,6 +41,10 @@ public record EngineDesign
     public required double FuelOrificeDiameter { get; init; } // [m]
     public required int OxOrificeCount { get; init; }
     public required double OxOrificeDiameter { get; init; }   // [m]
+
+    // Film cooling (if enabled)
+    public required double FilmCoolingMassFlow { get; init; } // [kg/s] fuel diverted to film cooling
+    public required double FilmCoolingFraction { get; init; }  // fraction of total fuel used for film cooling
 }
 
 public static class EngineSizing
@@ -90,6 +94,11 @@ public static class EngineSizing
         double fMdotFuel = fMdot / (1.0 + oSpec.OfRatio);
         double fMdotOx = fMdot - fMdotFuel;
 
+        // Film cooling: divert fraction of fuel to film cooling orifices
+        double fFilmFraction = oSpec.Injector.FilmCoolingFraction;
+        double fMdotFilm = fMdotFuel * fFilmFraction;
+        double fMdotFuelMain = fMdotFuel - fMdotFilm;
+
         // --- Combustion chamber ----------------------------------------------
         // Small engines need larger contraction ratios or the L* volume rule
         // produces absurdly long chambers. Empirical floor from Huzel & Huang
@@ -121,7 +130,8 @@ public static class EngineSizing
         const double fCd = 0.7;
         const double fDFuel = 0.6e-3, fDOx = 0.8e-3;
 
-        double fAFuel = fMdotFuel / (fCd * Math.Sqrt(2.0 * oGas.FuelDensity * fDp));
+        // Size main fuel orifices for remaining fuel flow (after film cooling diversion)
+        double fAFuel = fMdotFuelMain / (fCd * Math.Sqrt(2.0 * oGas.FuelDensity * fDp));
         double fAOx = fMdotOx / (fCd * Math.Sqrt(2.0 * oGas.OxDensity * fDp));
         int nFuel = Math.Max(4, (int)Math.Ceiling(fAFuel / (Math.PI * fDFuel * fDFuel / 4.0)));
         int nOx = Math.Max(4, (int)Math.Ceiling(fAOx / (Math.PI * fDOx * fDOx / 4.0)));
@@ -156,7 +166,9 @@ public static class EngineSizing
             FuelOrificeCount = nFuel,
             FuelOrificeDiameter = fDFuel,
             OxOrificeCount = nOx,
-            OxOrificeDiameter = fDOx
+            OxOrificeDiameter = fDOx,
+            FilmCoolingMassFlow = fMdotFilm,
+            FilmCoolingFraction = fFilmFraction
         };
     }
 
