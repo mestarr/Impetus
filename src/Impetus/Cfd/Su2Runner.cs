@@ -15,6 +15,9 @@ public record CfdResult
 
     /// <summary>Area-averaged wall heat flux near the throat from RANS [MW/m²], if available.</summary>
     public double? ThroatWallHeatFluxMWm2 { get; init; }
+
+    /// <summary>Wall heat flux distribution along nozzle contour [z (m), heatFlux (W/m²)].</summary>
+    public List<(double Z, double HeatFlux)> WallHeatFluxDistribution { get; init; } = [];
 }
 
 /// <summary>
@@ -136,6 +139,7 @@ public static class Su2Runner
         // Rows: outlet [r, rho, rho*u, p, M] or wall [x, y, heat flux, ...]
         List<double[]> aoOutlet = [];
         List<double> afThroatFlux = [];
+        List<(double Z, double HeatFlux)> aoWallFlux = [];
         for (int i = 1; i < astrLines.Length; i++)
         {
             if (string.IsNullOrWhiteSpace(astrLines[i])) continue;
@@ -147,8 +151,13 @@ public static class Su2Runner
             bool bOnWall = Math.Abs(fY - fRWall) <= 0.03 * Math.Max(fRWall, 1e-6);
             bool bOnOutlet = fX >= fExitZ * 0.995 && fY <= fExitR * 1.02;
 
-            if (bOnWall && iHeatFlux >= 0 && Math.Abs(fX - fThroatZ) <= fThroatBand)
-                afThroatFlux.Add(Math.Abs(D(astr[iHeatFlux])));
+            if (bOnWall && iHeatFlux >= 0)
+            {
+                double fFlux = Math.Abs(D(astr[iHeatFlux]));
+                if (Math.Abs(fX - fThroatZ) <= fThroatBand)
+                    afThroatFlux.Add(fFlux);
+                aoWallFlux.Add((fX, fFlux));
+            }
 
             if (!bOnOutlet || bOnWall)
                 continue;
@@ -191,6 +200,9 @@ public static class Su2Runner
             ? afThroatFlux.Average() / 1e6
             : null;
 
+        // Sort wall flux by Z position
+        aoWallFlux.Sort((a, b) => a.Z.CompareTo(b.Z));
+
         return new CfdResult
         {
             Converged = bConverged,
@@ -199,7 +211,8 @@ public static class Su2Runner
             ExitMachAvg = fMachSum / Math.Max(fArea, 1e-12),
             ExitPressureAvg = fPSum / Math.Max(fArea, 1e-12),
             Iterations = nIter,
-            ThroatWallHeatFluxMWm2 = fThroatFlux
+            ThroatWallHeatFluxMWm2 = fThroatFlux,
+            WallHeatFluxDistribution = aoWallFlux
         };
 
         static double MomentumFlux(double[] afRow, double fPa)

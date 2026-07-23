@@ -15,8 +15,11 @@ public record CombustionGas
     /// <summary>Mean molar mass of combustion products [kg/mol].</summary>
     public required double MolarMass { get; init; }
 
-    /// <summary>Ratio of specific heats of products (frozen through expansion).</summary>
+    /// <summary>Ratio of specific heats of products (frozen through expansion for v1).</summary>
     public required double Gamma { get; init; }
+
+    /// <summary>Whether to use equilibrium expansion (varying gamma) instead of frozen flow.</summary>
+    public bool EquilibriumExpansion { get; init; } = false;
 
     /// <summary>Characteristic chamber length L* [m] (combustion residence sizing).</summary>
     public required double LStar { get; init; }
@@ -55,9 +58,32 @@ public record CombustionGas
     public double Viscosity(double fT)
         => 1.184e-7 * Math.Sqrt(MolarMass * 1000.0) * Math.Pow(fT, 0.6);
 
+    /// <summary>
+    /// Compute local gamma for equilibrium expansion at given Mach number.
+    /// Simplified correlation: gamma decreases as expansion proceeds (recombination).
+    /// For frozen flow, returns constant Gamma.
+    /// </summary>
+    public double LocalGamma(double fMach)
+    {
+        if (!EquilibriumExpansion)
+            return Gamma;
+
+        // Simplified equilibrium gamma correlation
+        // Gamma decreases from chamber value (~1.2-1.3) toward ~1.1 at high Mach
+        // This is a rough approximation - full CEA integration would be more accurate
+        double fGammaChamber = Gamma;
+        double fGammaExit = Gamma - 0.15; // Approximate recombination effect
+
+        // Transition based on Mach number (typical nozzle exit Mach ~3-5)
+        double fMachTransition = 4.0;
+        double fT = Math.Min(fMach / fMachTransition, 1.0);
+
+        return fGammaChamber - fT * (fGammaChamber - fGammaExit);
+    }
+
     /// <summary>Interpolate equilibrium properties at the spec O/F and Pc.</summary>
-    public static CombustionGas Resolve(string strKey, double fOfRatio, double fPcBar)
-        => GasTableStore.Resolve(strKey, fOfRatio, fPcBar);
+    public static CombustionGas Resolve(string strKey, double fOfRatio, double fPcBar, bool bEquilibriumExpansion = false)
+        => GasTableStore.Resolve(strKey, fOfRatio, fPcBar, bEquilibriumExpansion);
 
     /// <summary>Nominal O/F at 20 bar — tests and legacy callers.</summary>
     public static CombustionGas ForPair(string strKey)

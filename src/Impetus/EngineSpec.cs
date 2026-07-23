@@ -118,6 +118,10 @@ public record EngineSpec
     /// Auto-set based on TargetProcess if not explicitly specified.</summary>
     public double VoxelSizeMM { get; init; } = 0.4;
 
+    /// <summary>Whether to use equilibrium expansion (varying gamma) instead of frozen flow.</summary>
+    /// More accurate but computationally intensive; frozen flow is conservative for v1.</summary>
+    public bool EquilibriumExpansion { get; init; } = false;
+
     /// <summary>Printer bed size [mm] for bed-fit checks in the print report. 0 = 250 mm default.</summary>
     public double PrinterBedMM { get; init; } = 250;
 

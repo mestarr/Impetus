@@ -81,4 +81,42 @@ public static class IsentropicFlow
         return Math.Sqrt(2.0 * g / (g - 1.0) * fRs * fTc
                          * (1.0 - Math.Pow(fPe / fPc, (g - 1.0) / g)));
     }
+
+    /// <summary>
+    /// Equilibrium expansion: integrate varying gamma along the nozzle.
+    /// Simplified approach: use average gamma between chamber and exit conditions.
+    /// For frozen flow, this reduces to the standard constant-gamma formula.
+    /// </summary>
+    public static double ExhaustVelocityEquilibrium(CombustionGas oGas, double fPe, double fPc)
+    {
+        if (!oGas.EquilibriumExpansion)
+            return ExhaustVelocity(oGas.Gamma, oGas.Rs, oGas.Tc, fPe, fPc);
+
+        // Estimate exit Mach number using chamber gamma
+        double fMe = MachFromPressureRatio(fPc / fPe, oGas.Gamma);
+
+        // Use local gamma at exit for more accurate expansion
+        double fGammaExit = oGas.LocalGamma(fMe);
+
+        // Average gamma for expansion (simplified)
+        double fGammaAvg = 0.5 * (oGas.Gamma + fGammaExit);
+
+        return ExhaustVelocity(fGammaAvg, oGas.Rs, oGas.Tc, fPe, fPc);
+    }
+
+    /// <summary>
+    /// Thrust coefficient with equilibrium expansion support.
+    /// </summary>
+    public static double ThrustCoefficientEquilibrium(CombustionGas oGas, double fEps, double fPe, double fPc, double fPa)
+    {
+        if (!oGas.EquilibriumExpansion)
+            return ThrustCoefficient(oGas.Gamma, fEps, fPe, fPc, fPa);
+
+        // Estimate exit Mach
+        double fMe = MachFromPressureRatio(fPc / fPe, oGas.Gamma);
+        double fGammaExit = oGas.LocalGamma(fMe);
+        double fGammaAvg = 0.5 * (oGas.Gamma + fGammaExit);
+
+        return ThrustCoefficient(fGammaAvg, fEps, fPe, fPc, fPa);
+    }
 }
