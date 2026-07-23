@@ -192,9 +192,9 @@ build, why, and in what order.
 ## Tier 5 — Ambitious (months)
 
 - [x] **Film cooling** — fuel bleed through wall orifices; ties to injector + regen.
-- **Conjugate heat transfer** — SU2 wall heat flux → regen channel model →
+- [x] **Conjugate heat transfer** — SU2 wall heat flux → regen channel model →
   coupled iteration.
-- **Combustion modeling** — beyond frozen equilibrium gas (far beyond v1).
+- [x] **Combustion modeling** — beyond frozen equilibrium gas (far beyond v1).
 - **Multi-engine / stage sizing** — thrust class sweeps, stage Δv budgets.
 - **Hardware closure loop** — test stand CSV → update gas tables or discharge
   coefficients.

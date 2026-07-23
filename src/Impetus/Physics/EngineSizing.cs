@@ -56,7 +56,7 @@ public static class EngineSizing
     public static EngineDesign Size(EngineSpec oSpec)
     {
         CombustionGas oGas = CombustionGas.Resolve(
-            oSpec.Propellants, oSpec.OfRatio, oSpec.ChamberPressureBar);
+            oSpec.Propellants, oSpec.OfRatio, oSpec.ChamberPressureBar, bEquilibriumExpansion: oSpec.EquilibriumExpansion);
         double g = oGas.Gamma;
         double fPc = oSpec.Pc;
         double fPa = oSpec.Pa;
@@ -78,15 +78,21 @@ public static class EngineSizing
         }
 
         // --- Throat sizing from required thrust -------------------------------
-        double fCf = IsentropicFlow.ThrustCoefficient(g, fEps, fPe, fPc, fPa);
-        double fCfVac = IsentropicFlow.ThrustCoefficient(g, fEps, fPe, fPc, 0.0);
+        double fCf = oGas.EquilibriumExpansion
+            ? IsentropicFlow.ThrustCoefficientEquilibrium(oGas, fEps, fPe, fPc, fPa)
+            : IsentropicFlow.ThrustCoefficient(g, fEps, fPe, fPc, fPa);
+        double fCfVac = oGas.EquilibriumExpansion
+            ? IsentropicFlow.ThrustCoefficientEquilibrium(oGas, fEps, fPe, fPc, 0.0)
+            : IsentropicFlow.ThrustCoefficient(g, fEps, fPe, fPc, 0.0);
         double fAt = oSpec.ThrustN / (fCf * fPc);
         double fRt = Math.Sqrt(fAt / Math.PI);
         double fRe = fRt * Math.Sqrt(fEps);
 
         double fCStar = IsentropicFlow.CStar(g, oGas.Rs, oGas.Tc);
         double fMdot = fPc * fAt / fCStar;
-        double fVe = IsentropicFlow.ExhaustVelocity(g, oGas.Rs, oGas.Tc, fPe, fPc);
+        double fVe = oGas.EquilibriumExpansion
+            ? IsentropicFlow.ExhaustVelocityEquilibrium(oGas, fPe, fPc)
+            : IsentropicFlow.ExhaustVelocity(g, oGas.Rs, oGas.Tc, fPe, fPc);
 
         double fIsp = oSpec.ThrustN / (fMdot * CombustionGas.G0);
         double fIspVac = fCfVac * fPc * fAt / (fMdot * CombustionGas.G0);

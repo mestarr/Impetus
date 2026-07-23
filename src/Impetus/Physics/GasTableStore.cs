@@ -41,7 +41,7 @@ public static class GasTableStore
 
     public static IReadOnlyCollection<string> Keys => s_oGrids.Value.Keys.ToList();
 
-    public static CombustionGas Resolve(string strKey, double fOfRatio, double fPcBar)
+    public static CombustionGas Resolve(string strKey, double fOfRatio, double fPcBar, bool bEquilibriumExpansion = false)
     {
         if (!s_oGrids.Value.TryGetValue(strKey, out GasGridFile? oGrid))
         {
@@ -59,6 +59,7 @@ public static class GasTableStore
             Tc = fTc,
             MolarMass = fM,
             Gamma = fG,
+            EquilibriumExpansion = bEquilibriumExpansion,
             LStar = oGrid.LStarM,
             NominalOf = oGrid.NominalOf,
             FuelDensity = oGrid.FuelDensity,
