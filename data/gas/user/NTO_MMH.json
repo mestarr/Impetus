@@ -1,0 +1,28 @@
+{
+  "Key": "NTO_MMH",
+  "DisplayName": "NTO/MMH (hypergolic)",
+  "NominalOf": 1.9,
+  "LStarM": 0.8,
+  "FuelDensity": 788.0,
+  "OxDensity": 1440.0,
+  "FuelCp": 2400.0,
+  "MaxCoolantRiseK": 150.0,
+  "Source": "Approximate values for demonstration - replace with CEA data",
+  "OfRatio": [1.5, 1.9, 2.3],
+  "PcBar": [10, 20, 30, 50],
+  "Tc": [
+    [3100, 3200, 3250, 3300],
+    [3150, 3250, 3300, 3350],
+    [3100, 3200, 3250, 3300]
+  ],
+  "MolarMass": [
+    [0.022, 0.023, 0.024, 0.025],
+    [0.021, 0.022, 0.023, 0.024],
+    [0.022, 0.023, 0.024, 0.025]
+  ],
+  "Gamma": [
+    [1.18, 1.17, 1.16, 1.15],
+    [1.19, 1.18, 1.17, 1.16],
+    [1.18, 1.17, 1.16, 1.15]
+  ]
+}

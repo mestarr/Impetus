@@ -4,6 +4,8 @@ using Impetus.Physics;
 using Impetus.Reporting;
 using PicoGK;
 using System.Text.Json;
+using System.Linq;
+using Stage = Impetus.Physics.StageSizing.StageDefinition;
 
 namespace Impetus.Cli;
 
@@ -17,9 +19,9 @@ static class ImpetusApp
         if (strCmd == "smoke")
             return RunSmoke();
 
-        if (strCmd is not ("design" or "test" or "all" or "view" or "post" or "validate" or "iterate" or "print" or "sweep" or "optimize" or "manufacturability" or "diff" or "export-only" or "post-hotfire"))
+        if (strCmd is not ("design" or "test" or "all" or "view" or "post" or "validate" or "iterate" or "print" or "sweep" or "optimize" or "manufacturability" or "diff" or "export-only" or "post-hotfire" or "thrust-sweep" or "stage"))
         {
-            Console.WriteLine("usage: impetus design|test|all|view|post|validate|iterate|print|sweep|optimize|manufacturability|diff|export-only|post-hotfire [spec.json] [args]");
+            Console.WriteLine("usage: impetus design|test|all|view|post|validate|iterate|print|sweep|optimize|manufacturability|diff|export-only|post-hotfire|thrust-sweep|stage [spec.json] [args]");
             return 1;
         }
 
@@ -65,6 +67,12 @@ static class ImpetusApp
 
         if (strCmd == "manufacturability")
             return RunManufacturability(oSpec, oDesign, oContour);
+
+        if (strCmd == "thrust-sweep")
+            return RunThrustSweep(oSpec, args);
+
+        if (strCmd == "stage")
+            return RunStageAnalysis(oSpec, args);
 
         if (strCmd == "print")
         {
@@ -516,6 +524,99 @@ static class ImpetusApp
         Console.WriteLine("  - Review manufacturability issues above");
         Console.WriteLine("  - Adjust spec geometry or cooling channels if needed");
         Console.WriteLine("  - Run 'design' to export STL/3MF for printing");
+
+        return 0;
+    }
+
+    static int RunThrustSweep(EngineSpec oSpec, string[] args)
+    {
+        Console.WriteLine("Thrust class sweep: analyzing engine performance across thrust levels...");
+
+        // Parse optional custom thrust levels
+        double[] afThrustN = StageSizing.StandardThrustClasses();
+        if (args.Length > 2)
+        {
+            try
+            {
+                afThrustN = args[2..].Select(double.Parse).ToArray();
+                Console.WriteLine($"Using custom thrust levels: {string.Join(", ", afThrustN)} N");
+            }
+            catch
+            {
+                Console.WriteLine("Invalid thrust levels, using standard classes.");
+            }
+        }
+
+        List<StageSizing.ThrustClassResult> aoResults = StageSizing.ThrustClassSweep(oSpec, afThrustN);
+
+        Console.WriteLine();
+        Console.WriteLine("Thrust Class Sweep Results:");
+        Console.WriteLine("Thrust [N] | IspVac [s] | MassFlow [kg/s] | Throat [cm²] | Exit [cm²]");
+        Console.WriteLine("-----------|------------|-----------------|---------------|-------------");
+
+        foreach (var oResult in aoResults)
+        {
+            Console.WriteLine($"{oResult.ThrustN,10:F0} | {oResult.IspVac,10:F1} | {oResult.MassFlow,15:F3} | {oResult.ThroatArea * 10000,13:F2} | {oResult.ExitArea * 10000,11:F2}");
+        }
+
+        Console.WriteLine();
+        Console.WriteLine("Next steps:");
+        Console.WriteLine("  - Select a thrust class for detailed design");
+        Console.WriteLine("  - Update spec thrustN and run 'design' to generate geometry");
+        Console.WriteLine("  - For multi-engine configurations, divide total thrust by engine count");
+
+        return 0;
+    }
+
+    static int RunStageAnalysis(EngineSpec oSpec, string[] args)
+    {
+        Console.WriteLine("Stage analysis: delta-v and mass ratio calculations...");
+
+        // For now, use the single engine as a stage
+        EngineDesign oDesign = EngineSizing.Size(oSpec);
+        NozzleContour oContour = new(oDesign);
+        ThermalResult oTherm = RegenSolver.Solve(oDesign, oContour);
+
+        // Calculate vacuum Isp
+        double fCfVac = IsentropicFlow.ThrustCoefficient(
+            oDesign.Gas.Gamma, oDesign.ExpansionRatio, oDesign.ExitPressure, oDesign.ChamberPressurePa, 0.0);
+        double fIspVac = fCfVac * oDesign.CStar / CombustionGas.G0;
+
+        // Estimate stage mass (simplified: engine + propellant + structure)
+        double fEngineMassKg = oDesign.MassFlow * oSpec.BurnDurationS * 0.02; // Rough engine mass estimate
+        double fPropellantMassKg = oDesign.MassFlow * oSpec.BurnDurationS;
+        double fStructureMassKg = fPropellantMassKg * 0.1; // 10% structural mass fraction
+        double fDryMassKg = fEngineMassKg + fStructureMassKg;
+
+        var oStageDef = new StageSizing.StageDefinition
+        {
+            Name = oSpec.Name,
+            ThrustN = oSpec.ThrustN,
+            BurnTimeS = oSpec.BurnDurationS,
+            DryMassKg = fDryMassKg,
+            PropellantMassKg = fPropellantMassKg,
+            EngineCount = 1
+        };
+
+        StageSizing.StageResult oResult = StageSizing.AnalyzeStage(oStageDef, fIspVac);
+
+        Console.WriteLine();
+        Console.WriteLine("Stage Analysis Results:");
+        Console.WriteLine($"  Stage: {oResult.Stage.Name}");
+        Console.WriteLine($"  Total thrust: {oResult.Stage.ThrustN:F0} N ({oResult.Stage.EngineCount} engine(s))");
+        Console.WriteLine($"  Burn time: {oResult.Stage.BurnTimeS:F1} s");
+        Console.WriteLine($"  Propellant mass: {oResult.Stage.PropellantMassKg:F1} kg");
+        Console.WriteLine($"  Dry mass: {oResult.Stage.DryMassKg:F1} kg");
+        Console.WriteLine($"  Total mass: {oResult.TotalMassKg:F1} kg");
+        Console.WriteLine($"  Mass ratio: {oResult.MassRatio:F2}");
+        Console.WriteLine($"  Vacuum Isp: {oResult.Isp:F1} s");
+        Console.WriteLine($"  Stage delta-v: {oResult.DeltaV:F0} m/s ({oResult.DeltaV / 1000:F2} km/s)");
+
+        Console.WriteLine();
+        Console.WriteLine("Next steps:");
+        Console.WriteLine("  - For multi-stage vehicles, define additional stages");
+        Console.WriteLine("  - Use 'thrust-sweep' to explore engine sizing options");
+        Console.WriteLine("  - Adjust burn duration or propellant mass to meet delta-v requirements");
 
         return 0;
     }
