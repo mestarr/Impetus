@@ -270,6 +270,14 @@ static class ImpetusApp
             {
                 CfdResult oCfd = Su2Runner.PostProcess(strCaseDir, oDesign);
                 oCfdForValidation = oCfd;
+
+                // Run conjugate heat transfer if wall heat flux data is available
+                if (oCfd.WallHeatFluxDistribution.Count > 0)
+                {
+                    Console.WriteLine("  Running conjugate heat transfer analysis...");
+                    oTherm = ConjugateHeatTransfer.SolveCoupled(oDesign, oContour, oCfd, Console.Out);
+                }
+
                 ValidationResult oValidation = VirtualValidation.Evaluate(oDesign, oTherm, oCfdForValidation);
                 strReport += DesignReport.CfdSection(oDesign, oCfd, oTherm);
 

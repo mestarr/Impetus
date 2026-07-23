@@ -266,4 +266,160 @@ public static class RegenSolver
         // Cap effectiveness at reasonable maximum (film cooling can't eliminate all heat)
         return Math.Min(fEffectiveness, 0.7);
     }
+
+    /// <summary>
+    /// Solve thermal model with CFD-provided wall heat flux boundary condition.
+    /// This is used for conjugate heat transfer coupling.
+    /// </summary>
+    public static ThermalResult SolveWithCfdFlux(
+        EngineDesign oDesign,
+        NozzleContour oContour,
+        double[] afCfdHeatFlux) // [W/m²] at each station
+    {
+        CombustionGas oGas = oDesign.Gas;
+        CoolingSpec oCool = oDesign.Spec.Cooling;
+        double g = oGas.Gamma;
+
+        double fWallMM = Math.Max(oDesign.Spec.WallThicknessMM, oCool.DiameterMM + 1.6);
+        double fLinerM = (fWallMM - oCool.DiameterMM) * 0.5e-3;
+        double fChanD = oCool.DiameterMM * 1e-3;
+        double fAChan = Math.PI * fChanD * fChanD / 4.0;
+        int nChan = oCool.Count;
+
+        // Adjust coolant flow for film cooling (film fuel doesn't go through regen)
+        double fMdotCoolant = oDesign.MassFlowFuel * (1.0 - oDesign.FilmCoolingFraction);
+
+        double fZEnd = oContour.ExitZ * fZEndFraction;
+        List<ContourPoint> aoPath = oContour.Resampled(120, fZStart, fZEnd);
+        double fAxialSpan = Math.Max(fZEnd - fZStart, 1e-6);
+        double fPitch = fAxialSpan / Math.Max(oCool.HelixTurns, 1e-6);
+
+        double fTc = CoolantInletTempK;
+        double fPc = CoolantInletPressurePa;
+        double fQTotal = 0;
+        double fQThroat = 0;
+        double fPeakWall = 0;
+        double fThroatWall = CoolantInletTempK;
+        double fDpTotal = 0;
+
+        List<ThermalStation> aoStations = [];
+        ContourPoint oPrev = aoPath[0];
+
+        for (int i = 1; i < aoPath.Count; i++)
+        {
+            ContourPoint oPt = aoPath[i];
+            double dz = oPt.Z - oPrev.Z;
+            double dr = oPt.R - oPrev.R;
+            double fDsContour = Math.Sqrt(dz * dz + dr * dr);
+            double fDTheta = 2.0 * Math.PI * fDsContour / fPitch;
+            double fDs = Math.Sqrt(fDsContour * fDsContour + (oPt.R * fDTheta) * (oPt.R * fDTheta));
+            double fR = 0.5 * (oPt.R + oPrev.R);
+
+            double fAreaRatio = (fR * fR) / (oDesign.ThroatRadius * oDesign.ThroatRadius);
+            bool bSupersonic = oPt.Z > oContour.ThroatZ;
+            double fM = fAreaRatio <= 1.0 + 1e-9
+                ? 1.0
+                : IsentropicFlow.MachFromAreaRatio(fAreaRatio, g, bSupersonic);
+            double fStag = 1.0 + 0.5 * (g - 1.0) * fM * fM;
+
+            // Use CFD heat flux if available, otherwise fall back to analytic
+            bool bUseCfdFlux = afCfdHeatFlux.Length > 0 && (i - 1) < afCfdHeatFlux.Length && afCfdHeatFlux[i - 1] > 0;
+
+            double fHg;
+            if (bUseCfdFlux)
+            {
+                // CFD provides heat flux directly: q = h_g * (T_aw - T_w)
+                // For simplicity, we'll use a simplified approach where CFD flux scales the analytic coefficient
+                double fPr = oGas.Pr;
+                double fMu = oGas.Viscosity(oGas.Tc);
+                double fRecovery = Math.Pow(fPr, 1.0 / 3.0);
+                double fRCurv = 0.5 * (1.5 + 0.382) * oDesign.ThroatRadius;
+                double fDt = 2.0 * oDesign.ThroatRadius;
+                double fC = 0.026 / Math.Pow(fDt, 0.2)
+                          * (Math.Pow(fMu, 0.2) * oGas.Cp / Math.Pow(fPr, 0.6))
+                          * Math.Pow(oDesign.Spec.Pc / oDesign.CStar, 0.8)
+                          * Math.Pow(fDt / fRCurv, 0.1);
+                double fSigma = 1.0 / (
+                    Math.Pow(0.5 * fTc / oGas.Tc * fStag + 0.5, 0.68)
+                    * Math.Pow(fStag, 0.12));
+                fHg = fC * Math.Pow(1.0 / fAreaRatio, 0.9) * fSigma;
+
+                // Scale by CFD flux ratio (simplified coupling)
+                double fAnalyticFlux = fHg * 100.0; // Approximate analytic flux
+                double fCfdFlux = afCfdHeatFlux[i - 1];
+                fHg *= Math.Max(0.5, Math.Min(2.0, fCfdFlux / fAnalyticFlux));
+            }
+            else
+            {
+                // Fall back to analytic Bartz
+                double fPr = oGas.Pr;
+                double fMu = oGas.Viscosity(oGas.Tc);
+                double fRecovery = Math.Pow(fPr, 1.0 / 3.0);
+                double fRCurv = 0.5 * (1.5 + 0.382) * oDesign.ThroatRadius;
+                double fDt = 2.0 * oDesign.ThroatRadius;
+                double fC = 0.026 / Math.Pow(fDt, 0.2)
+                          * (Math.Pow(fMu, 0.2) * oGas.Cp / Math.Pow(fPr, 0.6))
+                          * Math.Pow(oDesign.Spec.Pc / oDesign.CStar, 0.8)
+                          * Math.Pow(fDt / fRCurv, 0.1);
+                double fSigma = 1.0 / (
+                    Math.Pow(0.5 * fTc / oGas.Tc * fStag + 0.5, 0.68)
+                    * Math.Pow(fStag, 0.12));
+                fHg = fC * Math.Pow(1.0 / fAreaRatio, 0.9) * fSigma;
+            }
+
+            double fTaw = oGas.Tc * (1.0 + Math.Pow(oGas.Pr, 1.0 / 3.0) * 0.5 * (g - 1.0) * fM * fM) / fStag;
+
+            // Apply film cooling effectiveness
+            double fFilmEffectiveness = ComputeFilmCoolingEffectiveness(oDesign);
+            if (fFilmEffectiveness > 0)
+            {
+                double fTfilm = CoolantInletTempK;
+                fTaw = fTfilm + fFilmEffectiveness * (fTaw - fTfilm);
+            }
+
+            double fTw = fTc + 200.0;
+            double fQ = 0;
+            for (int nSub = 0; nSub < 6; nSub++)
+            {
+                double fHc = CoolantSideCoeff(oGas, fTc, fMdotCoolant, nChan, fAChan, fChanD);
+                fQ = (fTaw - fTc) / (1.0 / fHg + fLinerM / LinerConductivityWmK + 1.0 / fHc);
+                fTw = fTc + fQ * (1.0 / fHc + 0.5 * fLinerM / LinerConductivityWmK);
+            }
+
+            double fStrip = 2.0 * Math.PI * fR * fDsContour;
+            double fDQ = fQ * fStrip;
+            fQTotal += fDQ;
+            fPeakWall = Math.Max(fPeakWall, fTw);
+
+            if (Math.Abs(oPt.Z - oContour.ThroatZ) < 0.5 * fDsContour || fQ > fQThroat)
+            {
+                fQThroat = Math.Max(fQThroat, fQ);
+                fThroatWall = fTw;
+            }
+
+            fTc += fDQ / (fMdotCoolant * oGas.FuelCp);
+            fDpTotal += ChannelDpSegment(oGas, fMdotCoolant, nChan, fAChan, fChanD, fDs);
+
+            aoStations.Add(new(oPt.Z, oPt.R, fM, fQ, fTw, fTc, fPc - fDpTotal));
+            oPrev = oPt;
+        }
+
+        double fMdotChan = fMdotCoolant / nChan;
+        double fV = fMdotChan / (oGas.FuelDensity * fAChan);
+
+        return new ThermalResult
+        {
+            Stations = aoStations,
+            ThroatHeatFlux = fQThroat,
+            TotalHeatLoad = fQTotal,
+            CoolantTempRise = fTc - CoolantInletTempK,
+            CoolantVelocity = fV,
+            AssumedWallTemp = fPeakWall,
+            CoolantInletTempK = CoolantInletTempK,
+            CoolantOutletTempK = fTc,
+            PeakWallTempK = fPeakWall,
+            ThroatWallTempK = fThroatWall,
+            ChannelPressureDropPa = fDpTotal
+        };
+    }
 }

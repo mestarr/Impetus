@@ -69,6 +69,7 @@ public static class VirtualValidation
         aoChecks.Add(CheckCoolantVelocity(oTherm));
         aoChecks.Add(CheckWallTemperature(oTherm));
         aoChecks.Add(CheckFilmCooling(oDesign, oTherm));
+        aoChecks.Add(CheckCombustionModel(oDesign));
         aoChecks.Add(CheckInjectorStiffness(oDesign));
         aoChecks.Add(CheckInjectorStability(oDesign));
         aoChecks.Add(CheckExpansionMatch(oDesign));
@@ -377,6 +378,20 @@ public static class VirtualValidation
             $"Film cooling at {fFilmFraction * 100:F1}% fuel flow — wall temperatures acceptable.",
             "None.",
             "injector");
+    }
+
+    static ValidationCheck CheckCombustionModel(EngineDesign o)
+    {
+        if (o.Gas.EquilibriumExpansion)
+            return new("Combustion model", CheckStatus.Pass,
+                "Equilibrium expansion enabled — varying gamma accounts for recombination.",
+                "This is more accurate than frozen flow but may overpredict Isp for some propellants.",
+                null);
+
+        return new("Combustion model", CheckStatus.Pass,
+            "Frozen flow (constant gamma) — conservative baseline model.",
+            "Consider enabling equilibriumExpansion for higher accuracy at high expansion ratios.",
+            null);
     }
 
     static FeedSystemSizing SizeFeedSystem(EngineDesign o, double fBurnS)
