@@ -83,8 +83,11 @@ public static class GasTableStore
     static IReadOnlyDictionary<string, GasGridFile> LoadAll()
     {
         string strDir = FindDataDir();
+        string strUserDir = Path.Combine(strDir, "user");
+
         Dictionary<string, GasGridFile> ao = new(StringComparer.OrdinalIgnoreCase);
 
+        // Load built-in gas tables
         foreach (string strPath in Directory.EnumerateFiles(strDir, "*.json"))
         {
             GasGridFile oGrid = JsonSerializer.Deserialize<GasGridFile>(
@@ -92,6 +95,26 @@ public static class GasTableStore
                 ?? throw new InvalidDataException($"Could not parse gas table '{strPath}'");
             ValidateGrid(oGrid, strPath);
             ao[oGrid.Key] = oGrid;
+        }
+
+        // Load user-defined gas tables (can override built-in ones)
+        if (Directory.Exists(strUserDir))
+        {
+            foreach (string strPath in Directory.EnumerateFiles(strUserDir, "*.json"))
+            {
+                try
+                {
+                    GasGridFile oGrid = JsonSerializer.Deserialize<GasGridFile>(
+                        File.ReadAllText(strPath), s_oJson)
+                        ?? throw new InvalidDataException($"Could not parse user gas table '{strPath}'");
+                    ValidateGrid(oGrid, strPath);
+                    ao[oGrid.Key] = oGrid; // Override built-in if key matches
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine($"Warning: Failed to load user gas table '{strPath}': {e.Message}");
+                }
+            }
         }
 
         if (ao.Count == 0)
