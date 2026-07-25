@@ -579,7 +579,7 @@ static class ImpetusApp
 
         // Calculate vacuum Isp
         double fCfVac = IsentropicFlow.ThrustCoefficient(
-            oDesign.Gas.Gamma, oDesign.ExpansionRatio, oDesign.ExitPressure, oDesign.ChamberPressurePa, 0.0);
+            oDesign.Gas.Gamma, oDesign.ExpansionRatio, oDesign.ExitPressure, oDesign.Spec.Pc, 0.0);
         double fIspVac = fCfVac * oDesign.CStar / CombustionGas.G0;
 
         // Estimate stage mass (simplified: engine + propellant + structure)
