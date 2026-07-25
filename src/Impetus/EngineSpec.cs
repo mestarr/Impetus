@@ -125,6 +125,9 @@ public record EngineSpec
     /// <summary>Printer bed size [mm] for bed-fit checks in the print report. 0 = 250 mm default.</summary>
     public double PrinterBedMM { get; init; } = 250;
 
+    /// <summary>Burn duration for stage sizing and feed system analysis [s].</summary>
+    public double BurnDurationS { get; init; } = 60.0;
+
     private static readonly JsonSerializerOptions s_oJsonOptions = new()
     {
         PropertyNameCaseInsensitive = true,

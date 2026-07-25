@@ -60,7 +60,7 @@ public static class StageSizing
 
             // Calculate vacuum Isp
             double fCfVac = IsentropicFlow.ThrustCoefficient(
-                oDesign.Gas.Gamma, oDesign.ExpansionRatio, oDesign.ExitPressure, oDesign.ChamberPressurePa, 0.0);
+                oDesign.Gas.Gamma, oDesign.ExpansionRatio, oDesign.ExitPressure, oDesign.Spec.Pc, 0.0);
             double fIspVac = fCfVac * oDesign.CStar / CombustionGas.G0;
 
             aoResults.Add(new ThrustClassResult
@@ -69,7 +69,7 @@ public static class StageSizing
                 IspVac = fIspVac,
                 MassFlow = oDesign.MassFlow,
                 ThroatArea = oDesign.ThroatArea,
-                ExitArea = oDesign.ExitArea
+                ExitArea = Math.PI * oDesign.ExitRadius * oDesign.ExitRadius
             });
         }
 
