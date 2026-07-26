@@ -195,6 +195,8 @@ build, why, and in what order.
 - [x] **Conjugate heat transfer** — SU2 wall heat flux → regen channel model →
   coupled iteration.
 - [x] **Combustion modeling** — beyond frozen equilibrium gas (far beyond v1).
+- **Multi-engine / stage sizing** — thrust class sweeps, stage Δv budgets.
+- **Hardware closure loop** — test stand CSV → update gas tables or discharge
 - [x] **Multi-engine / stage sizing** — thrust class sweeps, stage Δv budgets.
 - [x] **Hardware closure loop** — test stand CSV → update gas tables or discharge
   coefficients.
