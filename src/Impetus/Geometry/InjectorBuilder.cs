@@ -1,16 +1,19 @@
 using System.Numerics;
-using Impetus;
 using Impetus.Physics;
 using PicoGK;
 
 namespace Impetus.Geometry;
 
 /// <summary>
-/// Builds injector plate geometry based on injector type and specifications.
+/// Builds the injector plate and the fuel and oxidizer domes behind it.
 /// Supports showerhead, coaxial swirl, and impinging doublet patterns.
 /// </summary>
 public class InjectorBuilder
 {
+    public const double CoaxialPlateMM = 8.0;
+    public const double ShowerheadPlateMM = 5.0;
+    public const double ImpingingPlateMM = 6.0;
+
     readonly Library m_lib;
     readonly EngineDesign m_oDesign;
     readonly InjectorSpec m_oSpec;
@@ -22,7 +25,6 @@ public class InjectorBuilder
         m_oSpec = oSpec;
     }
 
-    // Convert meters to millimeters (PicoGK convention)
     static double MM(double fMeters) => fMeters * 1000.0;
 
     /// <summary>Build the injector plate with appropriate element pattern.</summary>
@@ -37,219 +39,113 @@ public class InjectorBuilder
         };
     }
 
-    /// <summary>Build simple showerhead injector with ring pattern of orifices.</summary>
     Voxels voxBuildShowerhead()
     {
         double fChamberRadius = MM(m_oDesign.ChamberRadius);
-        double fPlateThickness = 5.0;
-        double fOrificeDiam = m_oSpec.OrificeDiameterMM;
-        int nElements = m_oSpec.ElementCount;
-
-        // Base plate using Lattice
-        Lattice latPlate = new(m_lib);
-        latPlate.AddBeam(
-            new Vector3(0, 0, (float)-fPlateThickness),
-            new Vector3(0, 0, 0.5f),
-            (float)fChamberRadius,
-            (float)fChamberRadius,
-            bRoundCap: false);
-
-        Voxels voxPlate = new(latPlate);
-
-        // Add orifices in ring pattern
-        Lattice latHoles = new(m_lib);
-        double fRingRadius = fChamberRadius * 0.6;
-        for (int i = 0; i < nElements; i++)
-        {
-            double fAngle = 2 * Math.PI * i / nElements;
-            double fX = fRingRadius * Math.Cos(fAngle);
-            double fY = fRingRadius * Math.Sin(fAngle);
-
-            latHoles.AddBeam(
-                new Vector3((float)fX, (float)fY, (float)(-fPlateThickness - 1)),
-                new Vector3((float)fX, (float)fY, 1),
-                (float)(fOrificeDiam / 2),
-                (float)(fOrificeDiam / 2),
-                bRoundCap: false);
-        }
-
-        // Add central igniter port
-        double fIgniterDiam = 3.0;
-        latHoles.AddBeam(
-            new Vector3(0, 0, (float)(-fPlateThickness - 1)),
-            new Vector3(0, 0, 1),
-            (float)(fIgniterDiam / 2),
-            (float)(fIgniterDiam / 2),
-            bRoundCap: false);
-
-        voxPlate.BoolSubtract(new Voxels(latHoles));
-
-        // Add film cooling orifices if enabled
-        if (m_oSpec.FilmCooling)
-        {
-            voxPlate = AddFilmCoolingOrifices(voxPlate, fChamberRadius, fPlateThickness);
-        }
-
-        return voxPlate;
+        List<InjectorPort> aoPorts = [];
+        AddRing(aoPorts, m_oDesign.FuelOrificeCount, m_oDesign.FuelOrificeDiameter * 1000.0,
+            0.72 * fChamberRadius, bFuel: true, 0);
+        AddRing(aoPorts, m_oDesign.OxOrificeCount, m_oDesign.OxOrificeDiameter * 1000.0,
+            0.42 * fChamberRadius, bFuel: false, Math.PI / Math.Max(4, m_oDesign.OxOrificeCount));
+        AddFilm(aoPorts, fChamberRadius);
+        return voxFinish(ShowerheadPlateMM, fChamberRadius, 3.0, aoPorts);
     }
 
-    /// <summary>Build coaxial swirl injector elements.</summary>
     Voxels voxBuildCoaxialSwirl()
     {
         double fChamberRadius = MM(m_oDesign.ChamberRadius);
-        double fPlateThickness = 8.0;
-        double fOuterDiam = m_oSpec.OuterDiameterMM;
-        double fInnerDiam = m_oSpec.InnerDiameterMM;
-        int nElements = m_oSpec.ElementCount;
-
-        // Base plate using Lattice
-        Lattice latPlate = new(m_lib);
-        latPlate.AddBeam(
-            new Vector3(0, 0, (float)-fPlateThickness),
-            new Vector3(0, 0, 0.5f),
-            (float)fChamberRadius,
-            (float)fChamberRadius,
-            bRoundCap: false);
-
-        Voxels voxPlate = new(latPlate);
-
-        // Add coaxial elements in ring pattern
-        Lattice latHoles = new(m_lib);
         double fRingRadius = fChamberRadius * 0.6;
+        int nElements = Math.Max(1, m_oSpec.ElementCount);
+        List<InjectorPort> aoPorts = [];
+
         for (int i = 0; i < nElements; i++)
         {
             double fAngle = 2 * Math.PI * i / nElements;
-            double fX = fRingRadius * Math.Cos(fAngle);
-            double fY = fRingRadius * Math.Sin(fAngle);
-
-            // Outer injector (oxidizer)
-            latHoles.AddBeam(
-                new Vector3((float)fX, (float)fY, (float)(-fPlateThickness - 1)),
-                new Vector3((float)fX, (float)fY, 1),
-                (float)(fOuterDiam / 2),
-                (float)(fOuterDiam / 2),
-                bRoundCap: false);
-
-            // Inner injector (fuel)
-            latHoles.AddBeam(
-                new Vector3((float)fX, (float)fY, (float)(-fPlateThickness - 2)),
-                new Vector3((float)fX, (float)fY, 1),
-                (float)(fInnerDiam / 2),
-                (float)(fInnerDiam / 2),
-                bRoundCap: false);
+            aoPorts.Add(new InjectorPort(
+                fRingRadius * Math.Cos(fAngle),
+                fRingRadius * Math.Sin(fAngle),
+                m_oSpec.InnerDiameterMM,
+                m_oSpec.OuterDiameterMM));
         }
 
-        // Add central igniter port
-        double fIgniterDiam = 4.0;
-        latHoles.AddBeam(
-            new Vector3(0, 0, (float)(-fPlateThickness - 1)),
-            new Vector3(0, 0, 1),
-            (float)(fIgniterDiam / 2),
-            (float)(fIgniterDiam / 2),
-            bRoundCap: false);
-
-        voxPlate.BoolSubtract(new Voxels(latHoles));
-
-        // Add film cooling orifices if enabled
-        if (m_oSpec.FilmCooling)
-        {
-            voxPlate = AddFilmCoolingOrifices(voxPlate, fChamberRadius, fPlateThickness);
-        }
-
-        return voxPlate;
+        AddFilm(aoPorts, fChamberRadius);
+        return voxFinish(CoaxialPlateMM, fChamberRadius, 4.0, aoPorts);
     }
 
-    /// <summary>Build impinging doublet injector elements.</summary>
     Voxels voxBuildImpingingDoublet()
     {
         double fChamberRadius = MM(m_oDesign.ChamberRadius);
-        double fPlateThickness = 6.0;
-        double fOrificeDiam = m_oSpec.OrificeDiameterMM;
-        int nElements = m_oSpec.ElementCount;
-
-        // Base plate using Lattice
-        Lattice latPlate = new(m_lib);
-        latPlate.AddBeam(
-            new Vector3(0, 0, (float)-fPlateThickness),
-            new Vector3(0, 0, 0.5f),
-            (float)fChamberRadius,
-            (float)fChamberRadius,
-            bRoundCap: false);
-
-        Voxels voxPlate = new(latPlate);
-
-        // Add impinging doublet pairs in ring pattern
-        Lattice latHoles = new(m_lib);
+        double fHoleR = m_oSpec.OrificeDiameterMM / 2.0;
+        double fPostR = fHoleR + PropellantDomes.PostWallMM;
+        double fSep = fPostR + fHoleR + 0.8;
         double fRingRadius = fChamberRadius * 0.6;
+        double fMaxRing = fChamberRadius - PropellantDomes.WallMM - (fSep / 2.0 + fPostR + 0.4);
+        if (fRingRadius > fMaxRing)
+            fRingRadius = Math.Max(4.0, fMaxRing);
+
+        int nElements = Math.Max(1, m_oSpec.ElementCount);
+        List<InjectorPort> aoPorts = [];
         for (int i = 0; i < nElements; i++)
         {
             double fAngle = 2 * Math.PI * i / nElements;
             double fX = fRingRadius * Math.Cos(fAngle);
             double fY = fRingRadius * Math.Sin(fAngle);
-
-            // Pair of orifices at 60-degree impingement angle
-            double fOffset = fOrificeDiam * 0.8;
-            double fAngle1 = fAngle + Math.PI / 6;
-            double fAngle2 = fAngle - Math.PI / 6;
-
-            latHoles.AddBeam(
-                new Vector3((float)(fX + fOffset * Math.Cos(fAngle1)), (float)(fY + fOffset * Math.Sin(fAngle1)), (float)(-fPlateThickness - 1)),
-                new Vector3((float)(fX + fOffset * Math.Cos(fAngle1)), (float)(fY + fOffset * Math.Sin(fAngle1)), 1),
-                (float)(fOrificeDiam / 2),
-                (float)(fOrificeDiam / 2),
-                bRoundCap: false);
-
-            latHoles.AddBeam(
-                new Vector3((float)(fX + fOffset * Math.Cos(fAngle2)), (float)(fY + fOffset * Math.Sin(fAngle2)), (float)(-fPlateThickness - 1)),
-                new Vector3((float)(fX + fOffset * Math.Cos(fAngle2)), (float)(fY + fOffset * Math.Sin(fAngle2)), 1),
-                (float)(fOrificeDiam / 2),
-                (float)(fOrificeDiam / 2),
-                bRoundCap: false);
+            double fTx = -Math.Sin(fAngle);
+            double fTy = Math.Cos(fAngle);
+            double fOx = (fSep / 2.0) * fTx;
+            double fOy = (fSep / 2.0) * fTy;
+            aoPorts.Add(new InjectorPort(fX + fOx, fY + fOy, m_oSpec.OrificeDiameterMM, 0));
+            aoPorts.Add(new InjectorPort(fX - fOx, fY - fOy, 0, m_oSpec.OrificeDiameterMM));
         }
 
-        // Add central igniter port
-        double fIgniterDiam = 3.0;
-        latHoles.AddBeam(
-            new Vector3(0, 0, (float)(-fPlateThickness - 1)),
-            new Vector3(0, 0, 1),
-            (float)(fIgniterDiam / 2),
-            (float)(fIgniterDiam / 2),
-            bRoundCap: false);
-
-        voxPlate.BoolSubtract(new Voxels(latHoles));
-
-        // Add film cooling orifices if enabled
-        if (m_oSpec.FilmCooling)
-        {
-            voxPlate = AddFilmCoolingOrifices(voxPlate, fChamberRadius, fPlateThickness);
-        }
-
-        return voxPlate;
+        AddFilm(aoPorts, fChamberRadius);
+        return voxFinish(ImpingingPlateMM, fChamberRadius, 3.0, aoPorts);
     }
 
-    /// <summary>Add film cooling orifice ring near chamber wall.</summary>
-    Voxels AddFilmCoolingOrifices(Voxels voxPlate, double fChamberRadius, double fPlateThickness)
+    void AddFilm(List<InjectorPort> aoPorts, double fChamberRadius)
     {
-        double fFilmDiam = m_oSpec.FilmOrificeDiameterMM;
-        int nFilmOrifices = m_oSpec.FilmOrificeCount;
-        double fFilmRingRadius = fChamberRadius * 0.85;
+        if (!m_oSpec.FilmCooling || m_oSpec.FilmOrificeCount < 1 || m_oSpec.FilmOrificeDiameterMM <= 0.2)
+            return;
 
-        Lattice latFilm = new(m_lib);
-        for (int i = 0; i < nFilmOrifices; i++)
+        double fPostR = m_oSpec.FilmOrificeDiameterMM / 2.0 + PropellantDomes.PostWallMM;
+        double fLimit = fChamberRadius - PropellantDomes.WallMM - fPostR - 0.4;
+        double fRing = Math.Min(fChamberRadius * 0.85, fLimit);
+        if (fRing < fPostR + 2.0)
+            return;
+
+        AddRing(aoPorts, m_oSpec.FilmOrificeCount, m_oSpec.FilmOrificeDiameterMM, fRing, bFuel: true, 0);
+    }
+
+    static void AddRing(
+        List<InjectorPort> aoPorts, int nCount, double fDiameterMM, double fRingRMM, bool bFuel, double fAngle0)
+    {
+        if (nCount < 1 || fDiameterMM <= 0.2 || fRingRMM <= fDiameterMM)
+            return;
+
+        int nMax = Math.Max(4, (int)(2.0 * Math.PI * fRingRMM / (1.6 * fDiameterMM)));
+        int n = Math.Min(nCount, nMax);
+        for (int i = 0; i < n; i++)
         {
-            double fAngle = 2 * Math.PI * i / nFilmOrifices;
-            double fX = fFilmRingRadius * Math.Cos(fAngle);
-            double fY = fFilmRingRadius * Math.Sin(fAngle);
-
-            latFilm.AddBeam(
-                new Vector3((float)fX, (float)fY, (float)(-fPlateThickness - 1)),
-                new Vector3((float)fX, (float)fY, 1),
-                (float)(fFilmDiam / 2),
-                (float)(fFilmDiam / 2),
-                bRoundCap: false);
+            double fA = fAngle0 + 2.0 * Math.PI * i / n;
+            double fX = fRingRMM * Math.Cos(fA);
+            double fY = fRingRMM * Math.Sin(fA);
+            aoPorts.Add(bFuel
+                ? new InjectorPort(fX, fY, fDiameterMM, 0)
+                : new InjectorPort(fX, fY, 0, fDiameterMM));
         }
+    }
 
-        voxPlate.BoolSubtract(new Voxels(latFilm));
-        return voxPlate;
+    Voxels voxFinish(double fPlateThickness, double fRadius, double fIgniterDiam, List<InjectorPort> aoPorts)
+    {
+        Lattice latPlate = new(m_lib);
+        latPlate.AddBeam(
+            new Vector3(0, 0, (float)-fPlateThickness),
+            new Vector3(0, 0, 0.5f),
+            (float)fRadius,
+            (float)fRadius,
+            bRoundCap: false);
+
+        return PropellantDomes.voxAttach(
+            m_lib, new Voxels(latPlate), fPlateThickness, fRadius, fIgniterDiam, aoPorts);
     }
 }

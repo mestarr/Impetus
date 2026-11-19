@@ -1,4 +1,5 @@
 using System.IO.Compression;
+using System.Numerics;
 using System.Text;
 using Impetus;
 using Impetus.Cfd;
@@ -257,6 +258,79 @@ public class MeshExportTests
         }
         return n;
     }
+}
+
+public class PropellantDomeTests
+{
+    [Fact]
+    public void Coaxial_FuelPostCrossesOxDome_AndSplitterHolds()
+    {
+        EngineSpec oSpec = EngineSpec.Load(Path.Combine(TestPaths.Root(), "specs", "demo-1kN.json"));
+        EngineDesign oDesign = EngineSizing.Size(oSpec);
+        using Library lib = new(0.2f);
+        Voxels vox = new ThrusterBuilder(lib, oDesign, new NozzleContour(oDesign)).voxBuildInjector();
+
+        double fRc = oDesign.ChamberRadius * 1000.0;
+        double fRing = 0.6 * fRc;
+        double fPlate = InjectorBuilder.CoaxialPlateMM;
+        double fOxZ = -fPlate - PropellantDomes.OxDepthMM / 2.0 + 0.5;
+        double fSplitZ = -fPlate - PropellantDomes.OxDepthMM - PropellantDomes.SplitterMM / 2.0;
+        double fFuelZ = fSplitZ - PropellantDomes.SplitterMM / 2.0 - PropellantDomes.FuelDepthMM / 2.0;
+        double fFuelR = oSpec.Injector.InnerDiameterMM / 2.0;
+        double fPostR = fFuelR + PropellantDomes.PostWallMM;
+
+        BBox3 oBox = vox.oCalculateBoundingBox();
+        Assert.True(oBox.vecMin.Z < PropellantDomes.BackZ(fPlate) + 1.0);
+
+        AssertVoid(vox, At(8.0, 7.5, fOxZ), "ox dome");
+        AssertSolid(vox, At(8.0, 7.5, fSplitZ), "splitter");
+        AssertVoid(vox, At(8.0, 7.5, fFuelZ), "fuel dome");
+
+        AssertVoid(vox, new Vector3((float)fRing, 0, (float)fSplitZ), "fuel hole through splitter");
+        AssertSolid(vox, new Vector3((float)fRing, (float)(fFuelR + PropellantDomes.PostWallMM / 2.0), (float)fOxZ), "fuel post");
+        AssertVoid(vox, new Vector3((float)fRing, (float)(fPostR + PropellantDomes.AnnulusMM / 2.0), -4), "ox annulus");
+        AssertSolid(vox, new Vector3((float)fRing, (float)(fPostR + PropellantDomes.AnnulusMM / 2.0), (float)fSplitZ), "splitter outside the post");
+
+        AssertVoid(vox, new Vector3(0, 0, (float)fOxZ), "igniter port");
+        AssertSolid(vox, new Vector3(2.8f, 0, (float)fOxZ), "igniter sleeve");
+    }
+
+    [Fact]
+    public void Showerhead_DomesSitBehindThePlate()
+    {
+        EngineSpec oBase = EngineSpec.Load(Path.Combine(TestPaths.Root(), "specs", "demo-1kN.json"));
+        EngineSpec oSpec = oBase with { Injector = oBase.Injector with { Type = InjectorType.Showerhead, FilmCooling = false } };
+        EngineDesign oDesign = EngineSizing.Size(oSpec);
+        using Library lib = new(0.2f);
+        Voxels vox = new ThrusterBuilder(lib, oDesign, new NozzleContour(oDesign)).voxBuildInjector();
+
+        double fRc = oDesign.ChamberRadius * 1000.0;
+        double fPlate = Math.Max(6.0, oSpec.WallThicknessMM * 2.0);
+        double fOxZ = -fPlate - PropellantDomes.OxDepthMM / 2.0 + 0.5;
+        double fSplitZ = -fPlate - PropellantDomes.OxDepthMM - PropellantDomes.SplitterMM / 2.0;
+        double fFuelZ = fSplitZ - PropellantDomes.SplitterMM / 2.0 - PropellantDomes.FuelDepthMM / 2.0;
+        AssertVoid(vox, At(0.55 * fRc, 10, fOxZ), "ox dome");
+        AssertSolid(vox, At(0.55 * fRc, 10, fSplitZ), "splitter");
+        AssertVoid(vox, At(0.55 * fRc, 10, fFuelZ), "fuel dome");
+        AssertVoid(vox, At(0.72 * fRc, 0, fSplitZ), "fuel orifice");
+
+        double fOxRing = 0.42 * fRc;
+        double fOxAngle = 180.0 / Math.Max(4, oDesign.OxOrificeCount);
+        AssertVoid(vox, At(fOxRing, fOxAngle, -fPlate / 2.0), "ox orifice");
+        AssertSolid(vox, At(fOxRing, fOxAngle, fSplitZ), "ox orifice stops at the splitter");
+    }
+
+    static Vector3 At(double fRadius, double fDeg, double fZ)
+    {
+        double fA = fDeg * Math.PI / 180.0;
+        return new Vector3((float)(fRadius * Math.Cos(fA)), (float)(fRadius * Math.Sin(fA)), (float)fZ);
+    }
+
+    static void AssertSolid(Voxels vox, Vector3 vec, string strWhere)
+        => Assert.True(vox.bIsInside(vec), $"expected metal at {vec} ({strWhere})");
+
+    static void AssertVoid(Voxels vox, Vector3 vec, string strWhere)
+        => Assert.False(vox.bIsInside(vec), $"expected a void at {vec} ({strWhere})");
 }
 
 static class TestPaths

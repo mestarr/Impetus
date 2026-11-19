@@ -13,19 +13,20 @@ port. The app does not build the igniter itself.
 | Solid | What it is |
 |---|---|
 | Body | Chamber, throat, and bell, with helical cooling channels and the two rings inside the wall that join those channels |
-| Injector | The face that meters fuel and oxidizer, including the center igniter port |
+| Injector | The face that meters fuel and oxidizer, the fuel dome, the oxidizer dome, and the center igniter port |
 | Flange | Bolt circle that mounts the engine on a test stand |
 
 The rings inside the wall are the cooling manifolds. They connect the channels
-to each other. They do not yet have a nipple a hose can screw onto, and the
-injector orifices do not yet open into a fuel volume and an oxidizer volume.
+to each other. They do not yet have a nipple a hose can screw onto. The
+injector orifices open into the fuel dome or the oxidizer dome.
 
 ## 11.2 Parts worth adding, in this order
 
-1. **Fuel dome and oxidizer dome.** Two small volumes on the back of the
-   injector. One feeds the fuel holes, the other feeds the oxidizer holes.
-   Without these, the orifices are holes with nowhere for the propellants to
-   enter.
+1. **Fuel dome and oxidizer dome.** Done. The oxidizer volume sits against the
+   back of the plate. The fuel volume sits behind a splitter. Each fuel hole
+   crosses the oxidizer volume inside a post, so the two propellants meet only
+   in the chamber. The igniter port runs through the center and stays sealed
+   from both volumes.
 2. **Coolant fittings.** A fuel-in boss at the nozzle end of the cooling
    jacket, and a fuel-out boss near the injector, where the fuel leaves the
    wall and goes into the fuel dome. The channels and the rings are already
@@ -39,9 +40,9 @@ injector orifices do not yet open into a fuel volume and an oxidizer volume.
    the coolant inlet and outlet. The test checklist already calls for these.
    The geometry does not have the fittings yet.
 
-The domes and the two coolant fittings turn the three solids into one
-connected engine. The igniter comes after that, because the port it mounts in
-is already in the injector.
+The two coolant fittings are what still has to join the cooling jacket to the
+fuel dome. The igniter comes after that, because the port it mounts in is
+already in the injector.
 
 ## 11.3 Leave these as bought hardware
 
