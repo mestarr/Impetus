@@ -19,6 +19,18 @@ below are one result of that loop: a 1 kN-class LOX / kerosene engine
   <img src="media/linkedin/02-cutaway.png" alt="Cutaway showing helical cooling channels in the wall" width="720" />
 </p>
 
+The STL is one joined solid for slicing. The 3MF keeps the same engine as three objects you can hide, recolor, or print separately: the cooled body, the injector, and the bolt flange.
+
+<p align="center">
+  <img src="media/linkedin/05-parts.png" alt="Exploded view of flange, injector, and body" width="860" />
+</p>
+
+<p align="center">
+  <img src="media/linkedin/04-body.png" alt="Chamber and bell" width="280" />
+  <img src="media/linkedin/04-injector.png" alt="Injector face" width="280" />
+  <img src="media/linkedin/04-flange.png" alt="Mounting flange" width="280" />
+</p>
+
 Built on [PicoGK](https://github.com/leap71/PicoGK) for voxel geometry and
 [SU2](https://su2code.github.io/) for CFD.
 
@@ -191,6 +203,7 @@ not hold every bore. `print` writes the bed-fit numbers for the spec you ran.
 | [08 Roadmap](docs/08-roadmap.md) | What is still simplified, and how to deepen it |
 | [09 Improvement backlog](docs/09-improvement-backlog.md) | Prioritized work list |
 | [10 Gas tables](docs/10-gas-tables.md) | CEA-style Tc, γ, and molar mass grids |
+| [11 Completing the engine](docs/11-completing-the-engine.md) | Domes, fittings, igniter, and what to buy |
 
 ## Limits
 
