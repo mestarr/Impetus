@@ -193,6 +193,7 @@ static class ImpetusApp
         Voxels voxEngine = new(oParts.Body);
         voxEngine.BoolAdd(oParts.Injector);
         voxEngine.BoolAdd(oParts.Flange);
+        voxEngine.BoolAdd(oParts.Igniter);
 
         Mesh mshEngine = voxEngine.mshAsMesh();
 
@@ -200,6 +201,7 @@ static class ImpetusApp
         var matBody = new Geometry.MaterialInfo("Copper", "#B87333", 1.0);
         var matInjector = new Geometry.MaterialInfo("Inconel", "#A0A0A0", 1.0);
         var matFlange = new Geometry.MaterialInfo("Aluminum", "#D4D4D4", 1.0);
+        var matIgniter = new Geometry.MaterialInfo("Steel", "#9AA3AD", 1.0);
 
         MeshExport.SaveAssemblyMeshFiles(
             mshEngine,
@@ -207,6 +209,7 @@ static class ImpetusApp
                 new MeshExport.ThreeMfPart("body", oParts.Body.mshAsMesh(), matBody),
                 new MeshExport.ThreeMfPart("injector", oParts.Injector.mshAsMesh(), matInjector),
                 new MeshExport.ThreeMfPart("flange", oParts.Flange.mshAsMesh(), matFlange),
+                new MeshExport.ThreeMfPart("igniter", oParts.Igniter.mshAsMesh(), matIgniter),
             ],
             Path.Combine(strOutDir, "engine.stl"),
             Path.Combine(strOutDir, "engine.3mf"),
@@ -218,10 +221,12 @@ static class ImpetusApp
         Voxels voxCutBody = oBuilder.voxCutaway(oParts.Body);
         Voxels voxCutInjector = oBuilder.voxCutaway(oParts.Injector);
         Voxels voxCutFlange = oBuilder.voxCutaway(oParts.Flange);
+        Voxels voxCutIgniter = oBuilder.voxCutaway(oParts.Igniter);
 
         Voxels voxCut = new(voxCutBody);
         voxCut.BoolAdd(voxCutInjector);
         voxCut.BoolAdd(voxCutFlange);
+        voxCut.BoolAdd(voxCutIgniter);
 
         MeshExport.SaveAssemblyMeshFiles(
             voxCut.mshAsMesh(),
@@ -229,6 +234,7 @@ static class ImpetusApp
                 new MeshExport.ThreeMfPart("body", voxCutBody.mshAsMesh(), matBody),
                 new MeshExport.ThreeMfPart("injector", voxCutInjector.mshAsMesh(), matInjector),
                 new MeshExport.ThreeMfPart("flange", voxCutFlange.mshAsMesh(), matFlange),
+                new MeshExport.ThreeMfPart("igniter", voxCutIgniter.mshAsMesh(), matIgniter),
             ],
             Path.Combine(strOutDir, "engine_cutaway.stl"),
             Path.Combine(strOutDir, "engine_cutaway.3mf"),
@@ -238,7 +244,7 @@ static class ImpetusApp
         MeshExport.SaveToObjFile(voxCut.mshAsMesh(), Path.Combine(strOutDir, "engine_cutaway.obj"), oSpec.Name + " (cutaway)");
 
         Console.WriteLine($"  -> {Path.Combine(strOutDir, "engine.stl")}");
-        Console.WriteLine($"  -> {Path.Combine(strOutDir, "engine.3mf")} (colored body + injector + flange)");
+        Console.WriteLine($"  -> {Path.Combine(strOutDir, "engine.3mf")} (body, injector, flange, igniter)");
         Console.WriteLine($"  -> {Path.Combine(strOutDir, "engine.obj")} (for OBJ viewers)");
         Console.WriteLine($"  -> {Path.Combine(strOutDir, "engine_cutaway.stl")}");
         Console.WriteLine($"  -> {Path.Combine(strOutDir, "engine_cutaway.3mf")} (colored cutaway)");

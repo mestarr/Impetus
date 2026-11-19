@@ -38,7 +38,7 @@ public static class PrintReport
         sb.AppendLine("### Files");
         sb.AppendLine();
         sb.AppendLine("- **Anycubic Kobra S1 / Slicer Next:** prefer `engine.3mf` (explicit mm units).");
-        sb.AppendLine("- `engine.3mf` has **three objects** — `body`, `injector`, `flange` — for per-part slicer control.");
+        sb.AppendLine("- `engine.3mf` has **four objects** — `body`, `injector`, `flange`, `igniter` — for per-part slicer control.");
         sb.AppendLine("- Universal fallback: `engine.stl` (same geometry, millimeters).");
         sb.AppendLine("- Inspection: `engine_cutaway.3mf` or `engine_cutaway.stl`.");
         sb.AppendLine();

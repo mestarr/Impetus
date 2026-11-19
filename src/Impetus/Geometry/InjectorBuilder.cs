@@ -48,7 +48,7 @@ public class InjectorBuilder
         AddRing(aoPorts, m_oDesign.OxOrificeCount, m_oDesign.OxOrificeDiameter * 1000.0,
             0.42 * fChamberRadius, bFuel: false, Math.PI / Math.Max(4, m_oDesign.OxOrificeCount));
         AddFilm(aoPorts, fChamberRadius);
-        return voxFinish(ShowerheadPlateMM, fChamberRadius, 3.0, aoPorts);
+        return voxFinish(ShowerheadPlateMM, fChamberRadius, SparkTorch.PortDiameterMM(InjectorType.Showerhead), aoPorts);
     }
 
     Voxels voxBuildCoaxialSwirl()
@@ -69,7 +69,7 @@ public class InjectorBuilder
         }
 
         AddFilm(aoPorts, fChamberRadius);
-        return voxFinish(CoaxialPlateMM, fChamberRadius, 4.0, aoPorts);
+        return voxFinish(CoaxialPlateMM, fChamberRadius, SparkTorch.PortDiameterMM(InjectorType.CoaxialSwirl), aoPorts);
     }
 
     Voxels voxBuildImpingingDoublet()
@@ -99,7 +99,7 @@ public class InjectorBuilder
         }
 
         AddFilm(aoPorts, fChamberRadius);
-        return voxFinish(ImpingingPlateMM, fChamberRadius, 3.0, aoPorts);
+        return voxFinish(ImpingingPlateMM, fChamberRadius, SparkTorch.PortDiameterMM(InjectorType.ImpingingDoublet), aoPorts);
     }
 
     void AddFilm(List<InjectorPort> aoPorts, double fChamberRadius)

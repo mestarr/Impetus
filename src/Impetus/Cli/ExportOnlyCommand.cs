@@ -53,6 +53,7 @@ static class ExportOnlyCommand
         Voxels voxEngine = new(oParts.Body);
         voxEngine.BoolAdd(oParts.Injector);
         voxEngine.BoolAdd(oParts.Flange);
+        voxEngine.BoolAdd(oParts.Igniter);
 
         Mesh mshEngine = voxEngine.mshAsMesh();
 
@@ -60,6 +61,7 @@ static class ExportOnlyCommand
         var matBody = new MaterialInfo("Copper", "#B87333", 1.0);
         var matInjector = new MaterialInfo("Inconel", "#A0A0A0", 1.0);
         var matFlange = new MaterialInfo("Aluminum", "#D4D4D4", 1.0);
+        var matIgniter = new MaterialInfo("Steel", "#9AA3AD", 1.0);
 
         MeshExport.SaveAssemblyMeshFiles(
             mshEngine,
@@ -67,6 +69,7 @@ static class ExportOnlyCommand
                 new MeshExport.ThreeMfPart("body", oParts.Body.mshAsMesh(), matBody),
                 new MeshExport.ThreeMfPart("injector", oParts.Injector.mshAsMesh(), matInjector),
                 new MeshExport.ThreeMfPart("flange", oParts.Flange.mshAsMesh(), matFlange),
+                new MeshExport.ThreeMfPart("igniter", oParts.Igniter.mshAsMesh(), matIgniter),
             ],
             Path.Combine(strOutDir, "engine.stl"),
             Path.Combine(strOutDir, "engine.3mf"),
@@ -76,7 +79,7 @@ static class ExportOnlyCommand
         MeshExport.SaveToObjFile(mshEngine, Path.Combine(strOutDir, "engine.obj"), oSpec.Name);
 
         Console.WriteLine($"  -> {Path.Combine(strOutDir, "engine.stl")}");
-        Console.WriteLine($"  -> {Path.Combine(strOutDir, "engine.3mf")} (colored body + injector + flange)");
+        Console.WriteLine($"  -> {Path.Combine(strOutDir, "engine.3mf")} (body, injector, flange, igniter)");
         Console.WriteLine($"  -> {Path.Combine(strOutDir, "engine.obj")} (for OBJ viewers)");
     }
 }

@@ -78,6 +78,8 @@ public static class DesignReport
         sb.AppendLine($"| Coolant velocity in channels | {F(oTherm.CoolantVelocity, "F1")} m/s |");
         sb.AppendLine($"| Channel pressure drop | {F(oTherm.ChannelPressureDropPa / 1e5, "F2")} bar |");
         sb.AppendLine($"| Channels | {s.Cooling.Count} x {F(s.Cooling.DiameterMM, "F1")} mm, {F(s.Cooling.HelixTurns, "F1")} turns |");
+        sb.AppendLine("| Coolant fittings | fuel inlet on the nozzle ring, outlet pipe into the fuel dome |");
+        sb.AppendLine("| Sensors | chamber-pressure boss on the cylinder, taps on the coolant inlet and outlet |");
         sb.AppendLine();
         sb.AppendLine("## Injector");
         sb.AppendLine();
@@ -88,6 +90,7 @@ public static class DesignReport
         sb.AppendLine($"| Fuel orifices | {o.FuelOrificeCount} x {F(o.FuelOrificeDiameter * 1000, "F2")} mm |");
         sb.AppendLine($"| Oxidizer orifices | {o.OxOrificeCount} x {F(o.OxOrificeDiameter * 1000, "F2")} mm |");
         sb.AppendLine("| Domes | oxidizer volume against the plate, fuel volume behind a splitter |");
+        sb.AppendLine("| Igniter | spark torch in the center port: two inlets, spark-plug boss, nozzle into the chamber |");
         sb.AppendLine();
 
         return sb.ToString();
