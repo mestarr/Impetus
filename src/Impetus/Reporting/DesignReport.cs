@@ -79,13 +79,15 @@ public static class DesignReport
         sb.AppendLine($"| Channel pressure drop | {F(oTherm.ChannelPressureDropPa / 1e5, "F2")} bar |");
         sb.AppendLine($"| Channels | {s.Cooling.Count} x {F(s.Cooling.DiameterMM, "F1")} mm, {F(s.Cooling.HelixTurns, "F1")} turns |");
         sb.AppendLine();
-        sb.AppendLine("## Injector (showerhead)");
+        sb.AppendLine("## Injector");
         sb.AppendLine();
         sb.AppendLine($"| Quantity | Value |");
         sb.AppendLine($"|---|---|");
         sb.AppendLine($"| Pressure drop | {F(o.InjectorDeltaP / 1e5, "F1")} bar (20% Pc) |");
+        sb.AppendLine($"| Pattern | {s.Injector.Type} |");
         sb.AppendLine($"| Fuel orifices | {o.FuelOrificeCount} x {F(o.FuelOrificeDiameter * 1000, "F2")} mm |");
         sb.AppendLine($"| Oxidizer orifices | {o.OxOrificeCount} x {F(o.OxOrificeDiameter * 1000, "F2")} mm |");
+        sb.AppendLine("| Domes | oxidizer volume against the plate, fuel volume behind a splitter |");
         sb.AppendLine();
 
         return sb.ToString();

@@ -53,8 +53,9 @@ spec.json ──► sizing physics ──► geometry (PicoGK) ──► STL / 3
    pressure (`data/gas/`). Wall heat and regen cooling are marched along the
    cooling channels, not guessed as a single temperature rise.
 3. **Geometry.** PicoGK builds the cooled chamber and bell, helical channels,
-   manifolds, injector, and bolted flange. Output is a watertight STL and a
-   3MF with separate `body`, `injector`, and `flange` objects.
+   manifolds, the injector with a fuel dome and an oxidizer dome, and the
+   bolted flange. Output is a watertight STL and a 3MF with separate `body`,
+   `injector`, and `flange` objects. The domes are part of the injector.
 4. **Virtual test.** A structured axisymmetric mesh is written for SU2. The
    solver runs RANS-SST with an isothermal wall. Thrust, mass flow, and exit
    Mach are compared with the analytic prediction. Throat heat flux is

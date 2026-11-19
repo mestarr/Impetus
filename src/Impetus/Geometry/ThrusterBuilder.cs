@@ -11,7 +11,7 @@ public readonly record struct EngineComponents(Voxels Body, Voxels Injector, Vox
 /// <summary>
 /// Turns an EngineDesign + NozzleContour into solid voxel geometry:
 /// regeneratively-cooled chamber/nozzle wall, helical cooling channels with
-/// inlet/outlet manifolds, showerhead injector plate and a bolted flange.
+/// inlet/outlet manifolds, injector plate with fuel and oxidizer domes, and a bolted flange.
 ///
 /// Geometry lives in mm (PicoGK convention), engine axis = +Z,
 /// injector face at Z = 0, exhaust exits toward +Z.
@@ -33,6 +33,13 @@ public class ThrusterBuilder
 
         // The wall must swallow the channels and leave a sane liner + closeout
         m_fWall = Math.Max(oDesign.Spec.WallThicknessMM, m_fChanD + 1.6);
+    }
+
+    /// <summary>Injector plate and propellant domes only.</summary>
+    public Voxels voxBuildInjector()
+    {
+        InjectorDims oDims = GetInjectorDims();
+        return voxInjectorPlate(oDims, m_oDesign.Spec.Injector);
     }
 
     /// <summary>Build body, injector plate, and flange as separate voxel fields.</summary>
@@ -220,7 +227,7 @@ public class ThrusterBuilder
             return oBuilder.voxBuild();
         }
 
-        // Legacy showerhead implementation for backward compatibility
+        // Showerhead: fuel on the outer ring, oxidizer on the inner ring.
         Lattice latPlate = new(m_lib);
         latPlate.AddBeam(
             new Vector3(0, 0, (float)-oDims.PlateThicknessMM),
@@ -229,21 +236,20 @@ public class ThrusterBuilder
             (float)oDims.ChamberOuterRadiusMM,
             bRoundCap: false);
 
-        Voxels voxPlate = new(latPlate);
-        Lattice latHoles = new(m_lib);
+        List<InjectorPort> aoPorts = [];
+        AddPortRing(aoPorts, m_oDesign.FuelOrificeCount, m_oDesign.FuelOrificeDiameter,
+            0.72 * oDims.ChamberRadiusMM, bFuel: true, 0);
+        AddPortRing(aoPorts, m_oDesign.OxOrificeCount, m_oDesign.OxOrificeDiameter,
+            0.42 * oDims.ChamberRadiusMM, bFuel: false,
+            Math.PI / Math.Max(4, m_oDesign.OxOrificeCount));
 
-        AddOrificeRing(latHoles, m_oDesign.FuelOrificeCount,
-            m_oDesign.FuelOrificeDiameter, 0.72 * oDims.ChamberRadiusMM, oDims.PlateThicknessMM);
-        AddOrificeRing(latHoles, m_oDesign.OxOrificeCount,
-            m_oDesign.OxOrificeDiameter, 0.42 * oDims.ChamberRadiusMM, oDims.PlateThicknessMM);
-
-        latHoles.AddBeam(
-            new Vector3(0, 0, (float)(-oDims.PlateThicknessMM - 1)),
-            new Vector3(0, 0, 2),
-            1.5f, 1.5f, bRoundCap: false);
-
-        voxPlate.BoolSubtract(new Voxels(latHoles));
-        return voxPlate;
+        return PropellantDomes.voxAttach(
+            m_lib,
+            new Voxels(latPlate),
+            oDims.PlateThicknessMM,
+            oDims.ChamberOuterRadiusMM,
+            3.0,
+            aoPorts);
     }
 
     /// <summary>Bolted mounting flange (annular ring with clearance holes).</summary>
@@ -286,23 +292,23 @@ public class ThrusterBuilder
         return voxFlange;
     }
 
-    void AddOrificeRing(Lattice lat, int nCount, double fDiaM, double fRingRMM, double fPlateT)
+    static void AddPortRing(
+        List<InjectorPort> aoPorts, int nCount, double fDiaM, double fRingRMM, bool bFuel, double fAngle0)
     {
-        // Cap how many orifices physically fit on the ring at 1.6x diameter spacing
         double fDiaMM = fDiaM * 1000.0;
-        int nMax = (int)(2.0 * Math.PI * fRingRMM / (1.6 * fDiaMM));
-        int n = Math.Min(nCount, Math.Max(4, nMax));
+        if (nCount < 1 || fDiaMM <= 0.2 || fRingRMM <= fDiaMM)
+            return;
 
+        int nMax = Math.Max(4, (int)(2.0 * Math.PI * fRingRMM / (1.6 * fDiaMM)));
+        int n = Math.Min(nCount, nMax);
         for (int i = 0; i < n; i++)
         {
-            double fA = 2.0 * Math.PI * i / n;
-            float fX = (float)(fRingRMM * Math.Cos(fA));
-            float fY = (float)(fRingRMM * Math.Sin(fA));
-            lat.AddBeam(
-                new Vector3(fX, fY, (float)(-fPlateT - 1)),
-                new Vector3(fX, fY, 1),
-                (float)(fDiaMM / 2.0), (float)(fDiaMM / 2.0),
-                bRoundCap: false);
+            double fA = fAngle0 + 2.0 * Math.PI * i / n;
+            double fX = fRingRMM * Math.Cos(fA);
+            double fY = fRingRMM * Math.Sin(fA);
+            aoPorts.Add(bFuel
+                ? new InjectorPort(fX, fY, fDiaMM, 0)
+                : new InjectorPort(fX, fY, 0, fDiaMM));
         }
     }
 

@@ -141,7 +141,7 @@ PicoGK writes STL natively; Impetus adds **3MF** export with explicit
 are written on every `design` / `all` run:
 
 - `engine.stl` — full engine (single combined mesh)
-- `engine.3mf` — same assembly as three named objects: `body`, `injector`, `flange`
+- `engine.3mf` — same assembly as three named objects: `body`, `injector`, `flange`. The injector object includes the fuel and oxidizer domes.
 - `engine_cutaway.stl` / `engine_cutaway.3mf` — y &lt; 0 half removed (3MF also split into three parts)
 
 STLs and 3MFs use millimeters — the unit every slicer expects.
@@ -158,3 +158,14 @@ STLs and 3MFs use millimeters — the unit every slicer expects.
 Rule of thumb: voxel size ≤ ⅓ of the smallest feature (smallest feature in the
 default spec = 0.8 mm liner → 0.27 mm ideal; 0.4 mm is acceptable for
 iteration, drop to 0.2 mm before printing).
+
+## 4.8 Propellant domes
+
+`PropellantDomes` stacks two manifolds on the back of the injector plate
+(Z &lt; 0). The oxidizer cavity is the one against the plate. The fuel cavity
+is behind a 1.6 mm splitter. A fuel hole is a tube through the oxidizer
+cavity, so that cavity feeds only the oxidizer passages. On a coaxial element
+the tube is the fuel post and the oxidizer leaves through the annulus around
+it. The center igniter hole continues out the back of the fuel dome and is
+walled off from both cavities. Film-cooling orifices, when the spec asks for
+them, are fuel passages.
