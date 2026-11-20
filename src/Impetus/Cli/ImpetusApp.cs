@@ -19,9 +19,9 @@ static class ImpetusApp
         if (strCmd == "smoke")
             return RunSmoke();
 
-        if (strCmd is not ("design" or "test" or "all" or "view" or "post" or "validate" or "iterate" or "print" or "sweep" or "optimize" or "manufacturability" or "diff" or "export-only" or "post-hotfire" or "thrust-sweep" or "stage" or "test-stand"))
+        if (strCmd is not ("design" or "test" or "all" or "view" or "post" or "validate" or "iterate" or "print" or "sweep" or "optimize" or "manufacturability" or "diff" or "export-only" or "post-hotfire" or "thrust-sweep" or "stage" or "test-stand" or "rocket"))
         {
-            Console.WriteLine("usage: impetus design|test|all|view|post|validate|iterate|print|sweep|optimize|manufacturability|diff|export-only|post-hotfire|thrust-sweep|stage|test-stand [spec.json] [args]");
+            Console.WriteLine("usage: impetus design|test|all|view|post|validate|iterate|print|sweep|optimize|manufacturability|diff|export-only|post-hotfire|thrust-sweep|stage|test-stand|rocket [spec.json] [args]");
             return 1;
         }
 
@@ -76,6 +76,9 @@ static class ImpetusApp
 
         if (strCmd == "test-stand")
             return RunTestStandAnalysis(oSpec, args);
+
+        if (strCmd == "rocket")
+            return RocketCommand.Run(oDesign, oContour, strOutDir, args);
 
         if (strCmd == "print")
         {

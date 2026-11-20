@@ -43,14 +43,37 @@ orifices open into the fuel dome or the oxidizer dome.
    the outlet stub open into the coolant. The sensor screws into the boss and
    seals it.
 
-Those are the parts from this list. Tanks, valves, and the spark exciter stay
-bought hardware.
+Those are the parts from this list. Valves and the spark exciter stay bought
+hardware.
 
-## 11.3 Leave these as bought hardware
+## 11.3 The rocket around the engine
 
-Tanks, the pressurant bottle, regulators, valves, burst disks, hoses, the
-spark exciter, and the load cell complete a test stand. They are not part of
-the computed engine, and printing them would not make the design better.
+`rocket` builds the next solid that still comes from the engine numbers: a
+round plate, a short fin, and two tanks, with this engine at the back. The
+plate is thick in the middle so the tanks fit, and thin at the rim. The tanks
+hold 1.5 times the propellant burned in the feed calculation (5 seconds unless
+you pass another burn time). They sit side by side. It is still not a
+flight-tested vehicle, and the engine is still the rocket.
+
+The wall thickness is a screening number for aluminum. It is not a qualified
+tank, and the stack does not fly. The nozzle calculation still solves only
+the gas inside the engine.
+
+```
+dotnet run --project src/Impetus -- rocket specs/demo-1kN.json
+```
+
+`media/viewer/index.html` turns that mesh in the browser. Drag to orbit.
+The lines are the airflow from a vortex-lattice estimate in
+[AeroSandbox](https://github.com/peterdsharpe/AeroSandbox) (MIT): lift and
+induced drag of the round plate, with the air drawn on the model.
+It is not the SU2 run inside the nozzle.
+
+## 11.4 Leave these as bought hardware
+
+The pressurant bottle, regulators, valves, burst disks, hoses, the spark
+exciter, and the load cell complete a test stand. They are not part of the
+computed engine, and printing them would not make the design better.
 
 These extra solids would still be a design model. A mesh of an igniter does
 not make a firing legal or safe. Hot fire stays outside this tool.

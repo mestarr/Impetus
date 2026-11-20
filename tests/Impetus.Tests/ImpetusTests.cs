@@ -366,6 +366,44 @@ public class SparkTorchTests
         => Assert.False(vox.bIsInside(vec), $"expected a void at {vec} ({strWhere})");
 }
 
+public class RocketBodyTests
+{
+    [Fact]
+    public void TanksHoldTheBurn_AndSitAheadOfTheEngine()
+    {
+        EngineSpec oSpec = EngineSpec.Load(Path.Combine(TestPaths.Root(), "specs", "demo-1kN.json"));
+        EngineDesign oDesign = EngineSizing.Size(oSpec);
+        FeedSystemSizing oFeed = VirtualValidation.SizeFeed(oDesign);
+        RocketBody.Shape oShape = RocketBody.Size(oDesign, oFeed);
+
+        AssertTank(oShape.Fuel, oDesign.Gas.FuelDensity);
+        AssertTank(oShape.Ox, oDesign.Gas.OxDensity);
+        Assert.True(oShape.Ox.FwdTipZ < oShape.Ox.AftTipZ);
+        Assert.Equal(oShape.Fuel.AftTipZ, oShape.Ox.AftTipZ);
+        Assert.True(Math.Abs(oShape.Fuel.CenterX - oShape.Ox.CenterX) > oShape.Fuel.OuterR + oShape.Ox.OuterR);
+        Assert.True(oShape.Fuel.AftTipZ < 0);
+        Assert.True(oShape.NoseTipZ < Math.Min(oShape.Fuel.FwdTipZ, oShape.Ox.FwdTipZ));
+        Assert.True(oShape.BodyHalfW > oShape.BodyHalfH * 5.0);
+        Assert.InRange(oShape.MountZ - oShape.NoseTipZ, oShape.BodyHalfW * 2.0 - 1.0, oShape.BodyHalfW * 2.0 + 1.0);
+        Assert.True(oShape.MountZ > oShape.Fuel.AftTipZ);
+        double fThick = RocketBody.NacaSides(RocketBody.TailSection, 40).Max(p => p.Upper - p.Lower);
+        Assert.InRange(fThick, 0.07, 0.11);
+    }
+
+    static void AssertTank(RocketBody.Tank oTank, double fDensity)
+    {
+        Assert.True(oTank.CapacityKg >= oTank.MassKg * RocketBody.CapacityFactor * 0.99);
+        double fHoopMM = oTank.PressureBar * 1e5 * (oTank.InnerR / 1000.0) / RocketBody.AllowablePa * 1000.0;
+        Assert.True(oTank.WallMM + 0.05 >= fHoopMM);
+        Assert.True(oTank.WallMM >= RocketBody.MinWallMM - 0.01);
+        double fInnerM = oTank.InnerR / 1000.0;
+        double fCylM = oTank.CylinderMM / 1000.0;
+        double fVolume = 4.0 / 3.0 * Math.PI * fInnerM * fInnerM * fInnerM + Math.PI * fInnerM * fInnerM * fCylM;
+        Assert.True(Math.Abs(fVolume - oTank.VolumeM3) < 1e-9);
+        Assert.True(Math.Abs(oTank.VolumeM3 * fDensity - oTank.CapacityKg) < 1e-6);
+    }
+}
+
 public class SensorPortTests
 {
     [Fact]

@@ -55,6 +55,10 @@ public static class VirtualValidation
     const double fValveLossBar = 0.2;
     const double fTankMarginBar = 1.0;
 
+    /// <summary>Tank pressure and propellant mass for a burn. The default burn is 5 s.</summary>
+    public static FeedSystemSizing SizeFeed(EngineDesign oDesign, double? fBurnDurationS = null)
+        => SizeFeedSystem(oDesign, fBurnDurationS ?? fDefaultBurnS);
+
     public static ValidationResult Evaluate(
         EngineDesign oDesign,
         ThermalResult oTherm,

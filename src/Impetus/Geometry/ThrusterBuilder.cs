@@ -56,6 +56,9 @@ public class ThrusterBuilder
         return voxInjectorPlate(oDims, m_oDesign.Spec.Injector);
     }
 
+    /// <summary>The chamber and nozzle wall only, with no channels or fittings.</summary>
+    public Voxels voxBuildShell() => voxWall();
+
     /// <summary>Cooled body, coolant fittings, and sensor ports.</summary>
     public Voxels voxBuildBody()
     {
