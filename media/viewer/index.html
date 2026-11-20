@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Impetus vehicle</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #121418; color: #e7ebf0; font-family: "Segoe UI", sans-serif; }
+  #view { position: fixed; inset: 0; }
+  #hud {
+    position: fixed; top: 16px; left: 16px; z-index: 2;
+    display: flex; gap: 8px; flex-wrap: wrap; max-width: 640px;
+  }
+  button {
+    background: #1c2128; color: #e7ebf0; border: 1px solid #3a4250;
+    border-radius: 6px; padding: 8px 12px; font: 14px "Segoe UI", sans-serif; cursor: pointer;
+  }
+  button:hover { border-color: #8ea0b8; }
+  #panel {
+    position: fixed; top: 16px; right: 16px; z-index: 2; width: 320px;
+    background: rgba(18, 20, 24, 0.92); border: 1px solid #2c3340; border-radius: 10px;
+    padding: 16px 16px 14px; box-sizing: border-box;
+  }
+  h1 { font-size: 16px; margin: 0 0 4px; font-weight: 650; }
+  p { margin: 0; color: #a8b0ba; font-size: 13px; line-height: 1.4; }
+  label { display: block; margin-top: 14px; font-size: 13px; color: #c5ccd4; }
+  input[type="range"] { width: 100%; margin-top: 6px; }
+  #readout { margin-top: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; font-variant-numeric: tabular-nums; }
+  #readout b { font-weight: 650; }
+  #readout span { color: #a8b0ba; font-size: 12px; }
+  canvas#chart { width: 100%; height: 120px; margin-top: 12px; display: block; }
+  #hint { position: fixed; left: 16px; bottom: 16px; z-index: 2; color: #8b949e; font-size: 13px; }
+</style>
+<script type="importmap">
+{ "imports": { "three": "./vendor/three.module.js" } }
+</script>
+</head>
+<body>
+<div id="view"></div>
+<div id="hud">
+  <button type="button" data-view="quarter">Quarter</button>
+  <button type="button" data-view="side">Side</button>
+  <button type="button" data-view="top">Top</button>
+  <button type="button" data-view="nose">Nose</button>
+  <button type="button" data-view="nozzle">Nozzle</button>
+  <button type="button" id="flow-toggle">Flow on</button>
+</div>
+<aside id="panel">
+  <h1>Aero estimate</h1>
+  <p id="note">Loading the vortex-lattice table…</p>
+  <label id="alpha-label">Angle of attack 4°</label>
+  <input id="alpha" type="range" min="-4" max="14" step="2" value="4" disabled />
+  <div id="readout"></div>
+  <canvas id="chart" width="576" height="240"></canvas>
+</aside>
+<div id="hint">Left drag turns it. Scroll zooms. Right drag moves it.</div>
+<script type="module">
+import * as THREE from "three";
+import { STLLoader } from "./vendor/STLLoader.js";
+import { OrbitControls } from "./vendor/OrbitControls.js";
+
+const view = document.getElementById("view");
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.domElement.setAttribute("role", "img");
+renderer.domElement.setAttribute("aria-label", "Vehicle model");
+view.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x121418);
+const camera = new THREE.PerspectiveCamera(35, innerWidth / innerHeight, 1, 20000);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.target.set(0, 0, 0);
+
+scene.add(new THREE.HemisphereLight(0xd5dde6, 0x1a1e24, 0.85));
+const key = new THREE.DirectionalLight(0xffffff, 1.35);
+key.position.set(400, 700, 500);
+scene.add(key);
+const fill = new THREE.DirectionalLight(0x9eb0c6, 0.45);
+fill.position.set(-600, 200, -400);
+scene.add(fill);
+
+const mesh = new THREE.Mesh(
+  new THREE.BufferGeometry(),
+  new THREE.MeshStandardMaterial({ color: 0xb7c0c8, metalness: 0.35, roughness: 0.55 })
+);
+scene.add(mesh);
+const flow = new THREE.Group();
+mesh.add(flow);
+let flowCases = null;
+let flowPaths = [];
+let flowDots = null;
+let flowOn = true;
+
+let radius = 800;
+const loader = new STLLoader();
+loader.load("./rocket-view.stl", (geometry) => {
+  geometry.computeVertexNormals();
+  geometry.center();
+  mesh.geometry = geometry;
+  geometry.computeBoundingSphere();
+  radius = geometry.boundingSphere.radius;
+  setView("quarter");
+}, undefined, (err) => {
+  document.getElementById("note").textContent = "Could not load rocket-view.stl. Run simplify_mesh.py, then reload.";
+  console.error(err);
+});
+
+function setView(name) {
+  const r = radius * 2.15;
+  const spots = {
+    quarter: new THREE.Vector3(r * 0.85, r * 0.38, r * 0.72),
+    side: new THREE.Vector3(r, r * 0.12, 0),
+    top: new THREE.Vector3(0, r, 0.01),
+    nose: new THREE.Vector3(0, r * 0.08, -r),
+    nozzle: new THREE.Vector3(0, r * 0.08, r),
+  };
+  camera.position.copy(spots[name]);
+  camera.up.set(0, 1, 0);
+  controls.target.set(0, 0, 0);
+  controls.update();
+  document.getElementById("hint").textContent = "Left drag turns it. Scroll zooms. Right drag moves it.";
+}
+
+document.getElementById("hud").addEventListener("click", (event) => {
+  const name = event.target?.dataset?.view;
+  if (name) setView(name);
+});
+
+const slider = document.getElementById("alpha");
+const label = document.getElementById("alpha-label");
+const readout = document.getElementById("readout");
+const note = document.getElementById("note");
+const chart = document.getElementById("chart");
+let aero = null;
+
+function rowFor(alpha) {
+  return aero.points.find((p) => p.alpha_deg === alpha) ?? aero.points[0];
+}
+
+function show(alpha) {
+  const row = rowFor(alpha);
+  label.textContent = `Angle of attack ${row.alpha_deg}°`;
+  mesh.rotation.x = row.alpha_deg * Math.PI / 180;
+  const ld = row.L_over_D == null ? "—" : row.L_over_D.toFixed(1);
+  readout.innerHTML = [
+    ["Lift coefficient", row.CL.toFixed(3)],
+    ["Induced drag", row.CD.toFixed(4)],
+    ["Lift / induced drag", ld],
+    [`Lift at ${aero.speed_m_s} m/s`, `${row.lift_N.toFixed(0)} N`],
+  ].map(([k, v]) => `<span>${k}</span><b>${v}</b>`).join("");
+  drawChart(row.alpha_deg);
+  setFlow(row.alpha_deg);
+}
+
+function drawChart(alpha) {
+  const g = chart.getContext("2d");
+  const w = chart.width, h = chart.height;
+  g.clearRect(0, 0, w, h);
+  const pts = aero.points;
+  const xs = pts.map((p) => p.alpha_deg);
+  const ys = pts.map((p) => p.CL);
+  const minX = Math.min(...xs), maxX = Math.max(...xs);
+  const minY = Math.min(0, ...ys), maxY = Math.max(...ys) * 1.15;
+  const pad = 28;
+  const X = (x) => pad + (x - minX) / (maxX - minX) * (w - pad * 2);
+  const Y = (y) => h - pad - (y - minY) / (maxY - minY) * (h - pad * 2);
+  g.strokeStyle = "#3a4250";
+  g.lineWidth = 1;
+  g.beginPath();
+  g.moveTo(pad, Y(0));
+  g.lineTo(w - pad, Y(0));
+  g.stroke();
+  g.strokeStyle = "#d7dee6";
+  g.lineWidth = 2;
+  g.beginPath();
+  pts.forEach((p, i) => (i ? g.lineTo(X(p.alpha_deg), Y(p.CL)) : g.moveTo(X(p.alpha_deg), Y(p.CL))));
+  g.stroke();
+  const mark = pts.find((p) => p.alpha_deg === alpha);
+  g.fillStyle = "#f2f5f8";
+  g.beginPath();
+  g.arc(X(mark.alpha_deg), Y(mark.CL), 5, 0, Math.PI * 2);
+  g.fill();
+  g.fillStyle = "#8b949e";
+  g.font = "22px Segoe UI";
+  g.fillText("CL", 8, 24);
+}
+
+slider.addEventListener("input", () => show(Number(slider.value)));
+
+fetch("./aero.json")
+  .then((res) => {
+    if (!res.ok) throw new Error(String(res.status));
+    return res.json();
+  })
+  .then((data) => {
+    aero = data;
+    note.textContent = data.note;
+    slider.disabled = false;
+    show(Number(slider.value));
+  })
+  .catch(() => {
+    note.textContent = "No aero table yet. From this folder run: py -3.13 aero.py";
+  });
+
+addEventListener("resize", () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+let flowMaterial = null;
+
+function clearFlow() {
+  for (const child of [...flow.children]) {
+    child.geometry?.dispose();
+    flow.remove(child);
+  }
+  flowMaterial?.dispose();
+  flowMaterial = null;
+  flowDots = null;
+  flowPaths = [];
+}
+
+function setFlow(alpha) {
+  clearFlow();
+  if (!flowOn || !flowCases) return;
+  const found = flowCases.find((c) => c.alpha_deg === alpha);
+  if (!found) return;
+  flowMaterial = new THREE.LineBasicMaterial({ color: 0x8fd4ff, transparent: true, opacity: 0.8 });
+  flowPaths = found.lines
+    .filter((line) => line.length >= 2)
+    .map((line) => line.map((p) => new THREE.Vector3(p[0], p[1], p[2])));
+  for (const path of flowPaths) {
+    flow.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(path), flowMaterial));
+  }
+  const dots = new Float32Array(flowPaths.length * 2 * 3);
+  const geom = new THREE.BufferGeometry();
+  geom.setAttribute("position", new THREE.BufferAttribute(dots, 3));
+  flowDots = new THREE.Points(geom, new THREE.PointsMaterial({
+    color: 0xf4fbff, size: 4, sizeAttenuation: false, depthTest: true,
+  }));
+  flow.add(flowDots);
+}
+
+function moveFlow(time) {
+  if (!flowDots) return;
+  const arr = flowDots.geometry.attributes.position.array;
+  const seconds = time * 0.001;
+  flowPaths.forEach((path, i) => {
+    for (let dot = 0; dot < 2; dot++) {
+      const u = (seconds * 0.22 + i * 0.137 + dot * 0.5) % 1;
+      const f = u * (path.length - 1);
+      const k = Math.min(path.length - 2, Math.floor(f));
+      const s = f - k;
+      const a = path[k];
+      const b = path[k + 1];
+      const n = (i * 2 + dot) * 3;
+      arr[n] = a.x + (b.x - a.x) * s;
+      arr[n + 1] = a.y + (b.y - a.y) * s;
+      arr[n + 2] = a.z + (b.z - a.z) * s;
+    }
+  });
+  flowDots.geometry.attributes.position.needsUpdate = true;
+}
+
+document.getElementById("flow-toggle").addEventListener("click", (event) => {
+  flowOn = !flowOn;
+  event.target.textContent = flowOn ? "Flow on" : "Flow off";
+  if (aero) show(Number(slider.value));
+});
+
+fetch("./flow.json")
+  .then((res) => {
+    if (!res.ok) throw new Error(String(res.status));
+    return res.json();
+  })
+  .then((data) => {
+    flowCases = data.cases;
+    if (aero) setFlow(Number(slider.value));
+  })
+  .catch(() => {
+    document.getElementById("flow-toggle").textContent = "No flow";
+  });
+
+renderer.setAnimationLoop((time) => {
+  moveFlow(time);
+  controls.update();
+  renderer.render(scene, camera);
+});
+</script>
+</body>
+</html>

@@ -19,7 +19,7 @@ below are one result of that loop: a 1 kN-class LOX / kerosene engine
   <img src="media/linkedin/02-cutaway.png" alt="Cutaway showing helical cooling channels in the wall" width="720" />
 </p>
 
-The STL is one joined solid for slicing. The 3MF keeps the same engine as three objects you can hide, recolor, or print separately: the cooled body, the injector, and the bolt flange.
+The STL is one joined solid for slicing. The 3MF keeps the same engine as four objects you can hide, recolor, or print separately: the cooled body, the injector, the bolt flange, and the spark torch.
 
 <p align="center">
   <img src="media/linkedin/05-parts.png" alt="Exploded view of flange, injector, and body" width="860" />
@@ -53,9 +53,11 @@ spec.json ──► sizing physics ──► geometry (PicoGK) ──► STL / 3
    pressure (`data/gas/`). Wall heat and regen cooling are marched along the
    cooling channels, not guessed as a single temperature rise.
 3. **Geometry.** PicoGK builds the cooled chamber and bell, helical channels,
-   manifolds, the injector with a fuel dome and an oxidizer dome, and the
-   bolted flange. Output is a watertight STL and a 3MF with separate `body`,
-   `injector`, and `flange` objects. The domes are part of the injector.
+   manifolds, a fuel-inlet nipple, the injector with a fuel dome and an
+   oxidizer dome, the pipe from the jacket into the fuel dome, a spark torch
+   in the center port, a chamber-pressure boss and coolant taps, and the
+   bolted flange. Output is a watertight STL and a
+   3MF with separate `body`, `injector`, `flange`, and `igniter` objects.
 4. **Virtual test.** A structured axisymmetric mesh is written for SU2. The
    solver runs RANS-SST with an isothermal wall. Thrust, mass flow, and exit
    Mach are compared with the analytic prediction. Throat heat flux is
@@ -104,6 +106,7 @@ To design another engine, copy a spec, change `name` and the numbers, and run
 | `diff` | Compare two specs |
 | `export-only` | Rebuild meshes from an existing design |
 | `stage` / `test-stand` / `post-hotfire` | Stage sizing and hot-fire notes |
+| `rocket` | Round plate, two tanks, a short fin, and this engine at the back |
 | `smoke` | PicoGK sanity check, no engine |
 
 ## What you get

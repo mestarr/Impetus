@@ -28,6 +28,16 @@ public static class PropellantDomes
     public static double BackZ(double fPlateThicknessMM)
         => -fPlateThicknessMM - OxDepthMM - SplitterMM - FuelDepthMM - WallMM;
 
+    /// <summary>Axial center of the fuel cavity.</summary>
+    public static double FuelMidZ(double fPlateThicknessMM)
+    {
+        double fBack = -fPlateThicknessMM;
+        double fOxBack = fBack - OxDepthMM;
+        double fFuelFront = fOxBack - SplitterMM;
+        double fFuelBack = fFuelFront - FuelDepthMM;
+        return 0.5 * (fFuelFront + fFuelBack);
+    }
+
     public static Voxels voxAttach(
         Library lib,
         Voxels voxPlate,

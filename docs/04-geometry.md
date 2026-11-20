@@ -141,7 +141,7 @@ PicoGK writes STL natively; Impetus adds **3MF** export with explicit
 are written on every `design` / `all` run:
 
 - `engine.stl` — full engine (single combined mesh)
-- `engine.3mf` — same assembly as three named objects: `body`, `injector`, `flange`. The injector object includes the fuel and oxidizer domes.
+- `engine.3mf` — same assembly as four named objects: `body`, `injector`, `flange`, `igniter`. The injector object includes the fuel and oxidizer domes. The igniter is the spark torch.
 - `engine_cutaway.stl` / `engine_cutaway.3mf` — y &lt; 0 half removed (3MF also split into three parts)
 
 STLs and 3MFs use millimeters — the unit every slicer expects.
@@ -169,3 +169,27 @@ the tube is the fuel post and the oxidizer leaves through the annulus around
 it. The center igniter hole continues out the back of the fuel dome and is
 walled off from both cavities. Film-cooling orifices, when the spec asks for
 them, are fuel passages.
+
+## 4.9 Coolant fittings
+
+`CoolantFittings` adds the two missing coolant connections. The inlet is a
+radial nipple on the body, open at the tip and drilled into the nozzle-end
+manifold ring. The outlet is a pipe from the injector-end ring, outside the
+bolt flange, back into the fuel dome. The stub is on the body and the pipe is
+on the injector; the bores overlap in the assembled engine. Both sit at 22.5°
+so they miss the flange bolts.
+
+## 4.10 Spark torch
+
+`SparkTorch` is a fourth solid. Its nozzle is smaller than the center port
+and aims a few millimetres into the chamber. Behind the fuel dome is the
+torch body: two open inlet bosses and one spark-plug boss. The spark hole
+stops short of the boss face, so it is closed until a plug is fitted. The
+generator does not build a pyrotechnic charge.
+
+## 4.11 Sensor ports
+
+`SensorPorts` adds three bosses on the body. The chamber-pressure boss is on
+the cylinder, aimed between two cooling channels so the hole reaches the hot
+gas and not a channel. The other two are taps on the coolant inlet nipple and
+the coolant outlet stub. Each hole opens on the boss face.

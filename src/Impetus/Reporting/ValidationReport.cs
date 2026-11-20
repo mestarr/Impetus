@@ -137,15 +137,15 @@ public static class ValidationReport
         sb.AppendLine($"| Oxidizer tank | ≥ {F(f.OxMassKg * 1.5, "F2")} kg capacity, ≥ {F(f.OxTankPressureBar, "F1")} bar |");
         sb.AppendLine($"| Feed lines | Ø{F(f.FeedLineDiameterMM, "F1")} mm ID, ≤ 2 m run length |");
         sb.AppendLine($"| Thrust stand | Load cell ≥ {F(s.ThrustN * 3, "F0")} N capacity |");
-        sb.AppendLine($"| Ignition | Pyrotechnic or spark igniter in igniter port (geometry included) |");
+        sb.AppendLine($"| Ignition | Spark torch in the center port (geometry included). A pyrotechnic cartridge is bought, not generated. |");
         sb.AppendLine();
         sb.AppendLine("## Instrumentation");
         sb.AppendLine();
         sb.AppendLine("| Sensor | Location | Purpose |");
         sb.AppendLine("|---|---|---|");
-        sb.AppendLine("| Chamber pressure transducer | Injector manifold tap | Compare to design Pc |");
+        sb.AppendLine("| Chamber pressure transducer | Boss on the chamber cylinder | Compare to design Pc |");
         sb.AppendLine("| Fuel / ox feed pressure | Upstream of injector | Verify Δp |");
-        sb.AppendLine("| Coolant inlet / outlet temperature | Regen manifolds | Verify Bartz estimate |");
+        sb.AppendLine("| Coolant inlet / outlet temperature | Taps on the inlet nipple and outlet stub | Verify Bartz estimate |");
         sb.AppendLine("| Thrust load cell | Engine mount | Compare to analytic + CFD |");
         sb.AppendLine("| High-speed video | Side view | Observe flame, instability |");
         sb.AppendLine("| Acoustic microphone | Near chamber | Detect chugging / screaming |");

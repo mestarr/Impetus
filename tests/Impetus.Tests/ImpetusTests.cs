@@ -333,6 +333,161 @@ public class PropellantDomeTests
         => Assert.False(vox.bIsInside(vec), $"expected a void at {vec} ({strWhere})");
 }
 
+public class SparkTorchTests
+{
+    [Fact]
+    public void NozzleSitsInThePort_AndSparkHoleStaysBlind()
+    {
+        EngineSpec oSpec = EngineSpec.Load(Path.Combine(TestPaths.Root(), "specs", "demo-1kN.json"));
+        EngineDesign oDesign = EngineSizing.Size(oSpec);
+        using Library lib = new(0.25f);
+        ThrusterBuilder oBuilder = new(lib, oDesign, new NozzleContour(oDesign));
+        Voxels voxInjector = oBuilder.voxBuildInjector();
+        SparkTorch.Shape o = SparkTorch.Measure(InjectorBuilder.CoaxialPlateMM, SparkTorch.PortDiameterMM(oSpec.Injector.Type));
+        Voxels voxTorch = SparkTorch.voxBuild(lib, InjectorBuilder.CoaxialPlateMM, SparkTorch.PortDiameterMM(oSpec.Injector.Type));
+
+        AssertVoid(voxInjector, new Vector3(0, 0, 0), "center port");
+        AssertVoid(voxTorch, new Vector3(0, 0, 2), "nozzle bore");
+        AssertSolid(voxTorch, new Vector3((float)(o.NozzleBoreR + 0.35), 0, 1), "nozzle wall");
+        AssertVoid(voxTorch, new Vector3(0, 0, (float)o.CavityZ), "torch chamber");
+
+        Vector3 vecInlet = new(0, (float)(o.BodyR + 2.0), (float)o.CavityZ);
+        AssertVoid(voxTorch, vecInlet, "inlet");
+        AssertSolid(voxTorch, vecInlet + new Vector3(0, 0, (float)(o.InletBoreR + 0.5)), "inlet wall");
+
+        AssertVoid(voxTorch, new Vector3(-(float)(o.BodyR + 1.5), 0, (float)o.CavityZ), "spark hole");
+        AssertSolid(voxTorch, new Vector3(-(float)(o.SparkFaceR - 0.4), 0, (float)o.CavityZ), "spark-plug seat");
+    }
+
+    static void AssertSolid(Voxels vox, Vector3 vec, string strWhere)
+        => Assert.True(vox.bIsInside(vec), $"expected metal at {vec} ({strWhere})");
+
+    static void AssertVoid(Voxels vox, Vector3 vec, string strWhere)
+        => Assert.False(vox.bIsInside(vec), $"expected a void at {vec} ({strWhere})");
+}
+
+public class RocketBodyTests
+{
+    [Fact]
+    public void TanksHoldTheBurn_AndSitAheadOfTheEngine()
+    {
+        EngineSpec oSpec = EngineSpec.Load(Path.Combine(TestPaths.Root(), "specs", "demo-1kN.json"));
+        EngineDesign oDesign = EngineSizing.Size(oSpec);
+        FeedSystemSizing oFeed = VirtualValidation.SizeFeed(oDesign);
+        RocketBody.Shape oShape = RocketBody.Size(oDesign, oFeed);
+
+        AssertTank(oShape.Fuel, oDesign.Gas.FuelDensity);
+        AssertTank(oShape.Ox, oDesign.Gas.OxDensity);
+        Assert.True(oShape.Ox.FwdTipZ < oShape.Ox.AftTipZ);
+        Assert.Equal(oShape.Fuel.AftTipZ, oShape.Ox.AftTipZ);
+        Assert.True(Math.Abs(oShape.Fuel.CenterX - oShape.Ox.CenterX) > oShape.Fuel.OuterR + oShape.Ox.OuterR);
+        Assert.True(oShape.Fuel.AftTipZ < 0);
+        Assert.True(oShape.NoseTipZ < Math.Min(oShape.Fuel.FwdTipZ, oShape.Ox.FwdTipZ));
+        Assert.True(oShape.BodyHalfW > oShape.BodyHalfH * 5.0);
+        Assert.InRange(oShape.MountZ - oShape.NoseTipZ, oShape.BodyHalfW * 2.0 - 1.0, oShape.BodyHalfW * 2.0 + 1.0);
+        Assert.True(oShape.MountZ > oShape.Fuel.AftTipZ);
+        double fThick = RocketBody.NacaSides(RocketBody.TailSection, 40).Max(p => p.Upper - p.Lower);
+        Assert.InRange(fThick, 0.07, 0.11);
+    }
+
+    static void AssertTank(RocketBody.Tank oTank, double fDensity)
+    {
+        Assert.True(oTank.CapacityKg >= oTank.MassKg * RocketBody.CapacityFactor * 0.99);
+        double fHoopMM = oTank.PressureBar * 1e5 * (oTank.InnerR / 1000.0) / RocketBody.AllowablePa * 1000.0;
+        Assert.True(oTank.WallMM + 0.05 >= fHoopMM);
+        Assert.True(oTank.WallMM >= RocketBody.MinWallMM - 0.01);
+        double fInnerM = oTank.InnerR / 1000.0;
+        double fCylM = oTank.CylinderMM / 1000.0;
+        double fVolume = 4.0 / 3.0 * Math.PI * fInnerM * fInnerM * fInnerM + Math.PI * fInnerM * fInnerM * fCylM;
+        Assert.True(Math.Abs(fVolume - oTank.VolumeM3) < 1e-9);
+        Assert.True(Math.Abs(oTank.VolumeM3 * fDensity - oTank.CapacityKg) < 1e-6);
+    }
+}
+
+public class SensorPortTests
+{
+    [Fact]
+    public void ChamberTapMissesTheChannels_AndCoolantTapsOpenTheBosses()
+    {
+        EngineSpec oSpec = EngineSpec.Load(Path.Combine(TestPaths.Root(), "specs", "demo-1kN.json"));
+        EngineDesign oDesign = EngineSizing.Size(oSpec);
+        using Library lib = new(0.35f);
+        ThrusterBuilder oBuilder = new(lib, oDesign, new NozzleContour(oDesign));
+        SensorPorts.Placement oSense = oBuilder.SensorPlacement();
+        Voxels voxBody = oBuilder.voxBuildBody();
+
+        double fMidR = 0.5 * (oSense.InnerR + oSense.OuterR);
+        AssertVoid(voxBody, CoolantFittings.At(fMidR, oSense.ChamberZ, oSense.ChamberAngle), "chamber tap");
+        AssertVoid(voxBody, CoolantFittings.At(oSense.InnerR - 0.4, oSense.ChamberZ, oSense.ChamberAngle), "chamber gas");
+        AssertSolid(voxBody, CoolantFittings.At(fMidR, oSense.ChamberZ, oSense.ChamberAngle) + Tangent(oSense.ChamberAngle) * 1.2f, "metal beside the chamber tap");
+        AssertVoid(voxBody, CoolantFittings.At(oSense.OuterR + 2.0, oSense.ChamberZ, oSense.ChamberAngle), "chamber-pressure boss");
+
+        Vector3 vecInTap = CoolantFittings.At(oSense.InletR, oSense.InletZ + oSense.CoolantSolidR + 1.4, oSense.CoolantAngle);
+        AssertVoid(voxBody, CoolantFittings.At(oSense.InletR, oSense.InletZ, oSense.CoolantAngle), "inlet bore under the tap");
+        AssertVoid(voxBody, vecInTap, "coolant inlet tap");
+        AssertSolid(voxBody, vecInTap + Tangent(oSense.CoolantAngle) * (float)(SensorPorts.BoreR + 0.55), "inlet tap wall");
+
+        Vector3 vecOutTap = CoolantFittings.At(oSense.OutletR, oSense.OutletZ + oSense.CoolantSolidR + 1.4, oSense.CoolantAngle);
+        AssertVoid(voxBody, CoolantFittings.At(oSense.OutletR, oSense.OutletZ, oSense.CoolantAngle), "outlet bore under the tap");
+        AssertVoid(voxBody, vecOutTap, "coolant outlet tap");
+        AssertSolid(voxBody, vecOutTap + Tangent(oSense.CoolantAngle) * (float)(SensorPorts.BoreR + 0.55), "outlet tap wall");
+    }
+
+    static Vector3 Tangent(double fAngle)
+        => new((float)-Math.Sin(fAngle), (float)Math.Cos(fAngle), 0);
+
+    static void AssertSolid(Voxels vox, Vector3 vec, string strWhere)
+        => Assert.True(vox.bIsInside(vec), $"expected metal at {vec} ({strWhere})");
+
+    static void AssertVoid(Voxels vox, Vector3 vec, string strWhere)
+        => Assert.False(vox.bIsInside(vec), $"expected a void at {vec} ({strWhere})");
+}
+
+public class CoolantFittingTests
+{
+    [Fact]
+    public void InletReachesTheNozzleRing_AndOutletReachesTheFuelDome()
+    {
+        EngineSpec oSpec = EngineSpec.Load(Path.Combine(TestPaths.Root(), "specs", "demo-1kN.json"));
+        EngineDesign oDesign = EngineSizing.Size(oSpec);
+        using Library lib = new(0.35f);
+        ThrusterBuilder oBuilder = new(lib, oDesign, new NozzleContour(oDesign));
+        CoolantFittings.Layout oFit = oBuilder.FittingLayout();
+        EngineComponents oParts = oBuilder.voxBuildComponents();
+
+        AssertVoid(oParts.Body, CoolantFittings.At(oFit.AftMidR, oFit.AftZ, oFit.AngleRad), "aft manifold");
+        AssertVoid(oParts.Body, CoolantFittings.At(0.5 * (oFit.AftMidR + oFit.AftOuterR), oFit.AftZ, oFit.AngleRad), "inlet through the wall");
+        AssertVoid(oParts.Body, CoolantFittings.At(oFit.AftOuterR + 4, oFit.AftZ, oFit.AngleRad), "inlet nipple");
+        Vector3 vecSkin = CoolantFittings.At(oFit.AftOuterR + 4, oFit.AftZ, oFit.AngleRad);
+        vecSkin.Z += (float)(oFit.BoreR + 0.6);
+        AssertSolid(oParts.Body, vecSkin, "inlet nipple wall");
+
+        Vector3 vecMate = CoolantFittings.At(oFit.ForwardOuterR + 1.2, oFit.ForwardZ, oFit.AngleRad);
+        AssertVoid(oParts.Body, CoolantFittings.At(oFit.ForwardMidR, oFit.ForwardZ, oFit.AngleRad), "forward manifold");
+        AssertVoid(oParts.Body, vecMate, "outlet stub");
+        AssertVoid(oParts.Injector, vecMate, "pipe meets the stub");
+        AssertVoid(oParts.Injector, CoolantFittings.At(oFit.PipeR, oFit.ForwardZ, oFit.AngleRad), "outlet bend");
+
+        double fMidZ = 0.5 * (oFit.ForwardZ + oFit.FuelZ);
+        Vector3 vecPipe = CoolantFittings.At(oFit.PipeR, fMidZ, oFit.AngleRad);
+        AssertVoid(oParts.Injector, vecPipe, "outlet pipe");
+        AssertSolid(oParts.Injector, vecPipe + Tangent(oFit.AngleRad) * (float)(oFit.BoreR + 0.6), "outlet pipe wall");
+        AssertVoid(oParts.Injector, CoolantFittings.At(oFit.FuelEntryR, oFit.FuelZ, oFit.AngleRad), "fuel dome");
+
+        double fSplitZ = -InjectorBuilder.CoaxialPlateMM - PropellantDomes.OxDepthMM - PropellantDomes.SplitterMM / 2.0;
+        AssertSolid(oParts.Injector, CoolantFittings.At(oFit.FuelEntryR, fSplitZ, oFit.AngleRad), "splitter stays shut");
+    }
+
+    static Vector3 Tangent(double fAngle)
+        => new((float)-Math.Sin(fAngle), (float)Math.Cos(fAngle), 0);
+
+    static void AssertSolid(Voxels vox, Vector3 vec, string strWhere)
+        => Assert.True(vox.bIsInside(vec), $"expected metal at {vec} ({strWhere})");
+
+    static void AssertVoid(Voxels vox, Vector3 vec, string strWhere)
+        => Assert.False(vox.bIsInside(vec), $"expected a void at {vec} ({strWhere})");
+}
+
 static class TestPaths
 {
     public static string Root()

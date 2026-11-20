@@ -6,7 +6,7 @@ using PicoGK;
 namespace Impetus.Geometry;
 
 /// <summary>Regeneratively-cooled wall, injector plate, and mounting flange as separate solids.</summary>
-public readonly record struct EngineComponents(Voxels Body, Voxels Injector, Voxels Flange);
+public readonly record struct EngineComponents(Voxels Body, Voxels Injector, Voxels Flange, Voxels Igniter);
 
 /// <summary>
 /// Turns an EngineDesign + NozzleContour into solid voxel geometry:
@@ -35,6 +35,20 @@ public class ThrusterBuilder
         m_fWall = Math.Max(oDesign.Spec.WallThicknessMM, m_fChanD + 1.6);
     }
 
+    /// <summary>Where the chamber-pressure boss and the two coolant taps sit.</summary>
+    public SensorPorts.Placement SensorPlacement()
+    {
+        List<ContourPoint> aoCool = m_oContour.Resampled(160, 0.002, m_oContour.ExitZ * 0.94);
+        return SensorPorts.Locate(aoCool, CoolantLayout(aoCool, GetInjectorDims()), m_oDesign, m_fWall);
+    }
+
+    /// <summary>Stations and radii of the coolant inlet nipple and the outlet pipe.</summary>
+    public CoolantFittings.Layout FittingLayout()
+    {
+        List<ContourPoint> aoCool = m_oContour.Resampled(160, 0.002, m_oContour.ExitZ * 0.94);
+        return CoolantLayout(aoCool, GetInjectorDims());
+    }
+
     /// <summary>Injector plate and propellant domes only.</summary>
     public Voxels voxBuildInjector()
     {
@@ -42,23 +56,44 @@ public class ThrusterBuilder
         return voxInjectorPlate(oDims, m_oDesign.Spec.Injector);
     }
 
-    /// <summary>Build body, injector plate, and flange as separate voxel fields.</summary>
-    public EngineComponents voxBuildComponents()
+    /// <summary>The chamber and nozzle wall only, with no channels or fittings.</summary>
+    public Voxels voxBuildShell() => voxWall();
+
+    /// <summary>Cooled body, coolant fittings, and sensor ports.</summary>
+    public Voxels voxBuildBody()
     {
         Console.WriteLine("  [geo] wall (revolve outer/inner)...");
         Voxels voxBody = voxWall();
+        List<ContourPoint> aoCool = m_oContour.Resampled(160, 0.002, m_oContour.ExitZ * 0.94);
         Console.WriteLine("  [geo] cooling channels...");
-        Voxels voxChannels = voxCoolingChannels();
+        Voxels voxChannels = voxCoolingChannels(aoCool);
         Console.WriteLine("  [geo] subtract channels...");
         voxBody.BoolSubtract(voxChannels);
 
         InjectorDims oDims = GetInjectorDims();
+        CoolantFittings.Layout oFit = CoolantLayout(aoCool, oDims);
+        CoolantFittings.AddToBody(m_lib, voxBody, oFit);
+        SensorPorts.Add(m_lib, voxBody, SensorPorts.Locate(aoCool, oFit, m_oDesign, m_fWall));
+        return voxBody;
+    }
+
+    /// <summary>Build body, injector plate, and flange as separate voxel fields.</summary>
+    public EngineComponents voxBuildComponents()
+    {
+        Voxels voxBody = voxBuildBody();
+        InjectorDims oDims = GetInjectorDims();
+        List<ContourPoint> aoCool = m_oContour.Resampled(160, 0.002, m_oContour.ExitZ * 0.94);
+        CoolantFittings.Layout oFit = CoolantLayout(aoCool, oDims);
+
         Console.WriteLine("  [geo] injector plate...");
         Voxels voxInjector = voxInjectorPlate(oDims, m_oDesign.Spec.Injector);
+        CoolantFittings.AddToInjector(m_lib, voxInjector, oFit, PlateRadiusMM(oDims));
         Console.WriteLine("  [geo] mounting flange...");
         Voxels voxMountFlange = voxMountingFlange(oDims);
+        Voxels voxIgniter = SparkTorch.voxBuild(
+            m_lib, PlateThicknessMM(oDims), SparkTorch.PortDiameterMM(m_oDesign.Spec.Injector.Type));
         Console.WriteLine("  [geo] done");
-        return new EngineComponents(voxBody, voxInjector, voxMountFlange);
+        return new EngineComponents(voxBody, voxInjector, voxMountFlange, voxIgniter);
     }
 
     /// <summary>Build the complete engine. Returns the solid voxel field.</summary>
@@ -68,6 +103,7 @@ public class ThrusterBuilder
         Voxels voxEngine = new(oParts.Body);
         voxEngine.BoolAdd(oParts.Injector);
         voxEngine.BoolAdd(oParts.Flange);
+        voxEngine.BoolAdd(oParts.Igniter);
         return voxEngine;
     }
 
@@ -139,19 +175,33 @@ public class ThrusterBuilder
         return new Voxels(lat);
     }
 
+    CoolantFittings.Layout CoolantLayout(List<ContourPoint> aoPath, InjectorDims oDims)
+        => CoolantFittings.Make(
+            aoPath[0], aoPath[^1], m_fWall, m_fChanD,
+            PlateThicknessMM(oDims), PlateRadiusMM(oDims), oDims.FlangeOuterRadiusMM);
+
+    double PlateThicknessMM(InjectorDims oDims)
+        => m_oDesign.Spec.Injector.Type switch
+        {
+            InjectorType.CoaxialSwirl => InjectorBuilder.CoaxialPlateMM,
+            InjectorType.ImpingingDoublet => InjectorBuilder.ImpingingPlateMM,
+            _ => oDims.PlateThicknessMM
+        };
+
+    double PlateRadiusMM(InjectorDims oDims)
+        => m_oDesign.Spec.Injector.Type == InjectorType.Showerhead
+            ? oDims.ChamberOuterRadiusMM
+            : oDims.ChamberRadiusMM;
+
     /// <summary>
     /// Helical cooling channels running inside the wall, mid-thickness,
     /// connected by toroidal supply/collector manifolds at both ends.
     /// </summary>
-    Voxels voxCoolingChannels()
+    Voxels voxCoolingChannels(List<ContourPoint> aoPath)
     {
         CoolingSpec oCool = m_oDesign.Spec.Cooling;
-        double fZStart = 0.002;                       // just below injector face [m]
-        double fZEnd = m_oContour.ExitZ * 0.94;       // stop before the exit lip
         double fRChan = m_fChanD / 2.0;               // [mm]
         double fMidOffset = m_fWall / 2.0;            // channel centerline depth [mm]
-
-        List<ContourPoint> aoPath = m_oContour.Resampled(160, fZStart, fZEnd);
         Lattice lat = new(m_lib);
 
         for (int iChan = 0; iChan < oCool.Count; iChan++)
@@ -248,7 +298,7 @@ public class ThrusterBuilder
             new Voxels(latPlate),
             oDims.PlateThicknessMM,
             oDims.ChamberOuterRadiusMM,
-            3.0,
+            SparkTorch.PortDiameterMM(InjectorType.Showerhead),
             aoPorts);
     }
 
