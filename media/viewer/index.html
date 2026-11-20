@@ -97,7 +97,7 @@ let flowOn = true;
 
 let radius = 800;
 const loader = new STLLoader();
-loader.load("./rocket-view.stl", (geometry) => {
+loader.load("./rocket-view.stl?v=6", (geometry) => {
   geometry.computeVertexNormals();
   geometry.center();
   mesh.geometry = geometry;
@@ -145,12 +145,11 @@ function show(alpha) {
   const row = rowFor(alpha);
   label.textContent = `Angle of attack ${row.alpha_deg}°`;
   mesh.rotation.x = row.alpha_deg * Math.PI / 180;
-  const ld = row.L_over_D == null ? "—" : row.L_over_D.toFixed(1);
   readout.innerHTML = [
-    ["Lift coefficient", row.CL.toFixed(3)],
-    ["Induced drag", row.CD.toFixed(4)],
-    ["Lift / induced drag", ld],
     [`Lift at ${aero.speed_m_s} m/s`, `${row.lift_N.toFixed(0)} N`],
+    [`Drag at ${aero.speed_m_s} m/s`, `${row.drag_N.toFixed(0)} N`],
+    ["Lift coefficient", row.CL.toFixed(3)],
+    ["Drag coefficient", row.CD.toFixed(4)],
   ].map(([k, v]) => `<span>${k}</span><b>${v}</b>`).join("");
   drawChart(row.alpha_deg);
   setFlow(row.alpha_deg);
@@ -191,7 +190,7 @@ function drawChart(alpha) {
 
 slider.addEventListener("input", () => show(Number(slider.value)));
 
-fetch("./aero.json")
+fetch("./aero.json?v=6")
   .then((res) => {
     if (!res.ok) throw new Error(String(res.status));
     return res.json();
@@ -230,12 +229,27 @@ function setFlow(alpha) {
   if (!flowOn || !flowCases) return;
   const found = flowCases.find((c) => c.alpha_deg === alpha);
   if (!found) return;
-  flowMaterial = new THREE.LineBasicMaterial({ color: 0x8fd4ff, transparent: true, opacity: 0.8 });
-  flowPaths = found.lines
-    .filter((line) => line.length >= 2)
-    .map((line) => line.map((p) => new THREE.Vector3(p[0], p[1], p[2])));
-  for (const path of flowPaths) {
-    flow.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(path), flowMaterial));
+  flowMaterial = new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.9 });
+  flowPaths = [];
+  for (const line of found.lines) {
+    if (line.length < 2) continue;
+    // Outboard lines sit on the plate in a side view, so keep the center rake.
+    if (Math.abs(line[0][0]) > 40) continue;
+    const positions = [];
+    const colors = [];
+    const path = [];
+    for (const p of line) {
+      const speed = p.length > 3 ? p[3] : 1;
+      const t = Math.min(1, Math.max(0, (speed - 0.92) / 0.18));
+      positions.push(p[0], p[1], p[2]);
+      colors.push(0.25 + 0.45 * t, 0.55 + 0.35 * t, 0.95);
+      path.push(new THREE.Vector3(p[0], p[1], p[2]));
+    }
+    const geom = new THREE.BufferGeometry();
+    geom.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+    geom.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+    flow.add(new THREE.Line(geom, flowMaterial));
+    flowPaths.push(path);
   }
   const dots = new Float32Array(flowPaths.length * 2 * 3);
   const geom = new THREE.BufferGeometry();
@@ -273,7 +287,7 @@ document.getElementById("flow-toggle").addEventListener("click", (event) => {
   if (aero) show(Number(slider.value));
 });
 
-fetch("./flow.json")
+fetch("./flow.json?v=6")
   .then((res) => {
     if (!res.ok) throw new Error(String(res.status));
     return res.json();

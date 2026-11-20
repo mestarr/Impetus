@@ -1,90 +1,90 @@
 {
-  "tool": "AeroSandbox VortexLatticeMethod",
+  "tool": "AeroSandbox AeroBuildup + vortex lattice",
   "repo": "https://github.com/peterdsharpe/AeroSandbox",
   "license": "MIT",
   "speed_m_s": 50.0,
   "wing_area_m2": 0.3422,
-  "note": "The lines in the viewer are the airflow from this same vortex lattice, drawn on the round plate. Drag is induced drag only. Not a wind tunnel, and not the SU2 nozzle run. The vehicle is sized for a 5 second rocket burn. It is not a flown airplane.",
+  "note": "The lines follow the vortex-lattice airflow and stay outside the plate. Color shows speed: pale is faster, blue is slower. Drag includes induced drag and skin friction. Not a wind tunnel, and not the SU2 nozzle run. The vehicle is sized for a 5 second rocket burn. It is not a flown airplane.",
   "points": [
     {
       "alpha_deg": -4.0,
-      "CL": -0.1326,
-      "CD": 0.00495,
-      "L_over_D": -26.81,
-      "lift_N": -69.5,
-      "drag_N": 2.59
+      "CL": -0.1195,
+      "CD": 0.01102,
+      "L_over_D": -10.85,
+      "lift_N": -62.6,
+      "drag_N": 5.77
     },
     {
       "alpha_deg": -2.0,
-      "CL": -0.062,
-      "CD": 0.00109,
-      "L_over_D": -56.84,
-      "lift_N": -32.5,
-      "drag_N": 0.57
+      "CL": -0.0596,
+      "CD": 0.0073,
+      "L_over_D": -8.16,
+      "lift_N": -31.2,
+      "drag_N": 3.83
     },
     {
       "alpha_deg": 0.0,
-      "CL": 0.0,
-      "CD": -0.0,
-      "L_over_D": null,
-      "lift_N": 0.0,
-      "drag_N": -0.0
+      "CL": -0.0,
+      "CD": 0.00608,
+      "L_over_D": -0.0,
+      "lift_N": -0.0,
+      "drag_N": 3.18
     },
     {
       "alpha_deg": 2.0,
-      "CL": 0.062,
-      "CD": 0.00109,
-      "L_over_D": 56.84,
-      "lift_N": 32.5,
-      "drag_N": 0.57
+      "CL": 0.0596,
+      "CD": 0.0073,
+      "L_over_D": 8.16,
+      "lift_N": 31.2,
+      "drag_N": 3.83
     },
     {
       "alpha_deg": 4.0,
-      "CL": 0.1326,
-      "CD": 0.00495,
-      "L_over_D": 26.81,
-      "lift_N": 69.5,
-      "drag_N": 2.59
+      "CL": 0.1195,
+      "CD": 0.01102,
+      "L_over_D": 10.85,
+      "lift_N": 62.6,
+      "drag_N": 5.77
     },
     {
       "alpha_deg": 6.0,
-      "CL": 0.2107,
-      "CD": 0.01271,
-      "L_over_D": 16.58,
-      "lift_N": 110.4,
-      "drag_N": 6.66
+      "CL": 0.1798,
+      "CD": 0.01728,
+      "L_over_D": 10.41,
+      "lift_N": 94.2,
+      "drag_N": 9.05
     },
     {
       "alpha_deg": 8.0,
-      "CL": 0.2957,
-      "CD": 0.02672,
-      "L_over_D": 11.07,
-      "lift_N": 155.0,
-      "drag_N": 14.0
+      "CL": 0.2402,
+      "CD": 0.02611,
+      "L_over_D": 9.2,
+      "lift_N": 125.9,
+      "drag_N": 13.68
     },
     {
       "alpha_deg": 10.0,
-      "CL": 0.3877,
-      "CD": 0.0526,
-      "L_over_D": 7.37,
-      "lift_N": 203.2,
-      "drag_N": 27.57
+      "CL": 0.3014,
+      "CD": 0.03761,
+      "L_over_D": 8.01,
+      "lift_N": 157.9,
+      "drag_N": 19.71
     },
     {
       "alpha_deg": 12.0,
-      "CL": 0.4876,
-      "CD": 0.10496,
-      "L_over_D": 4.65,
-      "lift_N": 255.5,
-      "drag_N": 55.01
+      "CL": 0.3644,
+      "CD": 0.05216,
+      "L_over_D": 6.99,
+      "lift_N": 191.0,
+      "drag_N": 27.34
     },
     {
       "alpha_deg": 14.0,
-      "CL": 0.5995,
-      "CD": 0.25298,
-      "L_over_D": 2.37,
-      "lift_N": 314.2,
-      "drag_N": 132.58
+      "CL": 0.4308,
+      "CD": 0.07042,
+      "L_over_D": 6.12,
+      "lift_N": 225.8,
+      "drag_N": 36.91
     }
   ]
 }

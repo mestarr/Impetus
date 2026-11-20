@@ -141,14 +141,12 @@ public static class RocketBody
 
     public static Voxels voxSkin(Library lib, Shape oShape)
     {
-        Lattice latOuter = new(lib);
-        AddStreamBody(latOuter, oShape);
+        Voxels vox = new(lib, new PlateField(oShape), PlateBounds(oShape));
         Lattice latInner = new(lib);
         double fBayW = Math.Abs(oShape.Fuel.CenterX) + oShape.Fuel.OuterR + 6.0;
         double fBay0 = Math.Min(oShape.Fuel.FwdTipZ, oShape.Ox.FwdTipZ) + oShape.Fuel.OuterR;
         double fBay1 = Math.Max(oShape.Fuel.AftTipZ, oShape.Ox.AftTipZ) - oShape.Fuel.OuterR;
         AddFilled(latInner, fBay0, fBay1, fBayW, oShape.BodyHalfH - 6.0, fBayW, oShape.BodyHalfH - 6.0);
-        Voxels vox = new(latOuter);
         vox.BoolSubtract(new Voxels(latInner));
         return vox;
     }
@@ -315,38 +313,6 @@ public static class RocketBody
         return ao;
     }
 
-    static void AddStreamBody(Lattice lat, Shape oShape)
-        => AddPlate(lat, oShape);
-
-    /// <summary>
-    /// Circular plate. Each slice is a smooth stadium, so the rim is not a
-    /// set of spokes. The middle stays thick enough for the tanks.
-    /// </summary>
-    static void AddPlate(Lattice lat, Shape oShape)
-    {
-        double fR = oShape.BodyHalfW;
-        double fCz = oShape.NoseBaseZ;
-        const int n = 56;
-        for (int i = 0; i < n; i++)
-        {
-            double fA = fCz - fR + 2.0 * fR * i / n;
-            double fB = fCz - fR + 2.0 * fR * (i + 1) / n;
-            double fWa = PlateHalfW(fA, fCz, fR);
-            double fWb = PlateHalfW(fB, fCz, fR);
-            if (fWa < 4.0 && fWb < 4.0)
-                continue;
-            float fHa = (float)PlateHalfH(Math.Abs(fA - fCz) / fR, oShape.BodyHalfH);
-            float fHb = (float)PlateHalfH(Math.Abs(fB - fCz) / fR, oShape.BodyHalfH);
-            AddFilled(lat, fA, fB, Math.Max(fWa, 4.0), fHa, Math.Max(fWb, 4.0), fHb);
-        }
-    }
-
-    static double PlateHalfW(double fZ, double fCz, double fR)
-    {
-        double fDz = fZ - fCz;
-        return Math.Sqrt(Math.Max(0.0, fR * fR - fDz * fDz));
-    }
-
     static void AddFilled(
         Lattice lat, double fZ0, double fZ1,
         double fHalfW0, double fHalfH0, double fHalfW1, double fHalfH1)
@@ -356,7 +322,7 @@ public static class RocketBody
         if (fW < 4.0 || fH < 3.0)
             return;
         double fReach = Math.Max(0.0, fW - fH);
-        double fStep = Math.Min(16.0, fH);
+        double fStep = Math.Min(8.0, Math.Max(4.0, fH * 0.65));
         for (double fX = -fReach; fX <= fReach + 0.1; fX += fStep)
         {
             lat.AddBeam(
@@ -375,6 +341,44 @@ public static class RocketBody
         double fU = (fFrac - fHubFrac) / (1.0 - fHubFrac);
         fU = fU * fU * (3.0 - 2.0 * fU);
         return fHubH + (fRim - fHubH) * fU;
+    }
+
+    static BBox3 PlateBounds(Shape oShape)
+    {
+        const float fPad = 8f;
+        float fR = (float)oShape.BodyHalfW + fPad;
+        float fH = (float)oShape.BodyHalfH + fPad;
+        float fCz = (float)oShape.NoseBaseZ;
+        return new BBox3(new Vector3(-fR, -fH, fCz - fR), new Vector3(fR, fH, fCz + fR));
+    }
+
+    /// <summary>
+    /// Smooth disc: circular in plan, full thickness through the tank bay,
+    /// then tapering to a 24 mm rim. Negative distance is inside.
+    /// </summary>
+    sealed class PlateField : IImplicit
+    {
+        readonly double m_fR;
+        readonly double m_fCz;
+        readonly double m_fHub;
+
+        public PlateField(Shape oShape)
+        {
+            m_fR = oShape.BodyHalfW;
+            m_fCz = oShape.NoseBaseZ;
+            m_fHub = oShape.BodyHalfH;
+        }
+
+        public float fSignedDistance(in Vector3 vec)
+        {
+            double fRad = Math.Sqrt(vec.X * vec.X + (vec.Z - m_fCz) * (vec.Z - m_fCz));
+            double fH = PlateHalfH(Math.Min(fRad / m_fR, 1.0), m_fHub);
+            double fOut = fRad - m_fR;
+            double fUp = Math.Abs(vec.Y) - fH;
+            if (fOut > 0.0 && fUp > 0.0)
+                return (float)Math.Sqrt(fOut * fOut + fUp * fUp);
+            return (float)Math.Max(fOut, fUp);
+        }
     }
 
     static void LoftSpan(

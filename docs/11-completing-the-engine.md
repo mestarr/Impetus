@@ -64,10 +64,10 @@ dotnet run --project src/Impetus -- rocket specs/demo-1kN.json
 ```
 
 `media/viewer/index.html` turns that mesh in the browser. Drag to orbit.
-The lines are the airflow from a vortex-lattice estimate in
-[AeroSandbox](https://github.com/peterdsharpe/AeroSandbox) (MIT): lift and
-induced drag of the round plate, with the air drawn on the model.
-It is not the SU2 run inside the nozzle.
+The lines follow the airflow from
+[AeroSandbox](https://github.com/peterdsharpe/AeroSandbox) (MIT) and stay
+outside the plate. Drag includes induced drag and skin friction. It is not
+the SU2 run inside the nozzle.
 
 ## 11.4 Leave these as bought hardware
 

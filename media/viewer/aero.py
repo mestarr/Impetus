@@ -1,8 +1,8 @@
-"""Vortex-lattice estimate for the Impetus vehicle.
+"""Aerodynamic estimate for the round plate.
 
 Uses AeroSandbox (MIT), https://github.com/peterdsharpe/AeroSandbox
-The wing and tail match RocketBody for the 5 second demo: NACA 2410,
-span 1.5 m, and a NACA 0009 tail. Drag from this method is induced drag.
+Forces include induced drag and airfoil skin friction (AeroBuildup).
+Streamlines come from the vortex lattice and are kept outside the plate.
 It is not SU2, and it is not a wind tunnel.
 
     py -3.13 aero.py
@@ -25,6 +25,10 @@ HUB_H = 0.051
 FIN_X = CENTER_X + 0.35 * (RADIUS * 0.70)
 FIN_ROOT_Z = HUB_H
 SPEED = 50.0
+
+
+def scalar(value) -> float:
+    return float(np.asarray(value).reshape(-1)[0])
 
 
 def naca_loop(code: str, n: int = 81):
@@ -100,53 +104,150 @@ def plate_half_h(frac):
     return HUB_H + (0.012 - HUB_H) * u
 
 
-def inside_body(x, y, z):
-    radius = float(np.hypot(x - CENTER_X, y))
-    if radius > RADIUS + 0.004:
-        return False
-    return abs(float(z)) < plate_half_h(radius / RADIUS) + 0.004
+CLEARANCE = 0.008
 
 
 def seeds():
-    ys = np.linspace(-0.46, 0.46, 8)
-    zs = np.array([-0.02, 0.03, 0.08, 0.14])
-    return np.array([[CENTER_X - RADIUS - 0.12, y, z] for z in zs for y in ys], dtype=float)
+    """A curtain of lines that meet the plate, not a wide field that misses it."""
+    ys = np.linspace(-0.22, 0.22, 5)
+    zs = np.linspace(-0.16, 0.20, 8)
+    return np.array([[CENTER_X - RADIUS - 0.22, y, z] for z in zs for y in ys], dtype=float)
+
+
+def body_distance(x, y, z):
+    dx = float(x) - CENTER_X
+    radius = float(np.hypot(dx, y))
+    half_h = plate_half_h(min(radius / RADIUS, 1.0))
+    radial = radius - RADIUS
+    vertical = abs(float(z)) - half_h
+    if radial > 0.0 and vertical > 0.0:
+        return float(np.hypot(radial, vertical))
+    return float(max(radial, vertical))
+
+
+def outward(x, y, z):
+    dx = float(x) - CENTER_X
+    radius = float(np.hypot(dx, y))
+    half_h = plate_half_h(min(radius / RADIUS, 1.0))
+    radial = radius - RADIUS
+    vertical = abs(float(z)) - half_h
+    if radial > 0.0 and vertical > 0.0:
+        scale = 1.0 / max(float(np.hypot(radial, vertical)), 1.0e-8)
+        horiz = radial * scale / max(radius, 1.0e-6)
+        up = vertical * scale * (1.0 if z >= 0.0 else -1.0)
+        grad = np.array([horiz * dx, horiz * float(y), up], dtype=float)
+    elif radial > vertical:
+        horiz = 1.0 / max(radius, 1.0e-6)
+        grad = np.array([horiz * dx, horiz * float(y), 0.0], dtype=float)
+    else:
+        eps = 1.0e-3
+        half_next = plate_half_h(min((radius + eps) / RADIUS, 1.0))
+        slope = (half_next - half_h) / eps
+        scale = -slope / max(radius, 1.0e-6)
+        grad = np.array([
+            scale * dx,
+            scale * float(y),
+            1.0 if z >= 0.0 else -1.0,
+        ], dtype=float)
+    return grad / max(float(np.linalg.norm(grad)), 1.0e-8)
+
+
+def hold_off(point):
+    """Keep the point a few millimetres off the skin so the line stays visible."""
+    p = np.array(point, dtype=float)
+    for _ in range(8):
+        gap = body_distance(p[0], p[1], p[2])
+        if gap >= CLEARANCE:
+            return p
+        p = p + (CLEARANCE - gap + 0.001) * outward(p[0], p[1], p[2])
+    return p if body_distance(p[0], p[1], p[2]) >= 0.0 else None
+
+
+def trace(vlm):
+    """Follow the vortex-lattice velocity and ride over the plate instead of through it."""
+    pts = seeds()
+    n = len(pts)
+    steps = 90
+    alive = np.ones(n, dtype=bool)
+    xyz = np.zeros((n, steps, 3))
+    speed = np.zeros((n, steps))
+    xyz[:, 0] = pts
+    ds = 1.25 / (steps - 1)
+    for k in range(1, steps):
+        vel = vlm.get_velocity_at_points(pts)
+        mag = np.linalg.norm(vel, axis=1)
+        speed[:, k - 1] = mag
+        nxt = pts + ds * vel / np.clip(mag[:, None], 1e-6, None)
+        for i in range(n):
+            if not alive[i]:
+                nxt[i] = pts[i]
+                continue
+            direction = vel[i] / max(mag[i], 1e-6)
+            if body_distance(pts[i, 0], pts[i, 1], pts[i, 2]) < 0.025:
+                normal = outward(pts[i, 0], pts[i, 1], pts[i, 2])
+                direction = direction - normal * float(np.dot(direction, normal))
+                length = float(np.linalg.norm(direction))
+                if length < 1e-4:
+                    direction = np.array([1.0, 0.0, 0.0])
+                else:
+                    direction = direction / length
+                nxt[i] = pts[i] + ds * direction
+            held = hold_off(nxt[i])
+            if held is None or not np.isfinite(held).all():
+                alive[i] = False
+                nxt[i] = pts[i]
+            else:
+                nxt[i] = held
+        pts = nxt
+        xyz[:, k] = pts
+    speed[:, -1] = speed[:, -2]
+    return xyz, speed
 
 
 def solve(plane, alpha: float):
+    op = asb.OperatingPoint(velocity=SPEED, alpha=alpha)
+    forces = asb.AeroBuildup(
+        airplane=plane, op_point=op, include_wave_drag=False, model_size="small"
+    ).run()
     vlm = asb.VortexLatticeMethod(
         airplane=plane,
-        op_point=asb.OperatingPoint(velocity=SPEED, alpha=alpha),
-        spanwise_resolution=12,
-        chordwise_resolution=6,
+        op_point=op,
+        spanwise_resolution=14,
+        chordwise_resolution=8,
         align_trailing_vortices_with_wind=True,
     )
-    got = vlm.run()
-    cl, cd = float(got["CL"]), float(got["CD"])
-    raw = vlm.calculate_streamlines(seed_points=seeds(), n_steps=56, length=2.05)
-    wind = np.asarray(vlm.steady_freestream_velocity, dtype=float)
+    vlm.run()
+    xyz, speed = trace(vlm)
+    cl, cd = scalar(forces["CL"]), max(0.0, scalar(forces["CD"]))
     row = {
         "alpha_deg": alpha,
         "CL": round(cl, 4),
         "CD": round(cd, 5),
         "L_over_D": None if cd <= 1e-6 else round(cl / cd, 2),
-        "lift_N": round(float(got["L"]), 1),
-        "drag_N": round(float(got["D"]), 2),
+        "lift_N": round(scalar(forces["L"]), 1),
+        "drag_N": round(scalar(forces["D"]), 2),
     }
-    return row, raw, wind
+    wind = np.asarray(vlm.steady_freestream_velocity, dtype=float)
+    return row, xyz, speed, wind
 
 
-def to_viewer_mm(raw, center):
-    """AeroSandbox meters (+x aft, +y right, +z up) to the centered viewer frame."""
+def to_viewer_mm(xyz, speed, center):
+    """AeroSandbox meters (+x aft, +y right, +z up) to the centered viewer frame.
+
+    Each point is [x, y, z, speed / freestream].
+    """
     lines = []
-    for i in range(raw.shape[0]):
+    for i in range(xyz.shape[0]):
         pts = []
-        for k in range(raw.shape[2]):
-            x, y, z = (float(v) for v in raw[i, :, k])
-            if not np.isfinite([x, y, z]).all() or inside_body(x, y, z):
+        for k in range(xyz.shape[1]):
+            x, y, z = (float(v) for v in xyz[i, k])
+            if not np.isfinite([x, y, z]).all():
+                break
+            if k > 0 and np.allclose(xyz[i, k], xyz[i, k - 1]):
                 break
             local = np.array([y * 1000.0, z * 1000.0, x * 1000.0]) - center
-            pts.append([round(float(v), 1) for v in local])
+            ratio = float(speed[i, k]) / SPEED
+            pts.append([round(float(v), 1) for v in local] + [round(ratio, 3)])
         if len(pts) >= 6:
             lines.append(pts)
     return lines
@@ -159,20 +260,21 @@ def main():
     rows = []
     cases = []
     for alpha in range(-4, 15, 2):
-        row, raw, wind = solve(plane, float(alpha))
+        row, xyz, speed, wind = solve(plane, float(alpha))
         rows.append(row)
-        lines = to_viewer_mm(raw, center)
+        lines = to_viewer_mm(xyz, speed, center)
         cases.append({"alpha_deg": alpha, "lines": lines})
         print(f"  alpha {alpha:5.0f}  lines {len(lines):2d}  wind {np.round(wind, 2)}")
     payload = {
-        "tool": "AeroSandbox VortexLatticeMethod",
+        "tool": "AeroSandbox AeroBuildup + vortex lattice",
         "repo": "https://github.com/peterdsharpe/AeroSandbox",
         "license": "MIT",
         "speed_m_s": SPEED,
         "wing_area_m2": round(area, 4),
         "note": (
-            "The lines in the viewer are the airflow from this same vortex lattice, "
-            "drawn on the round plate. Drag is induced drag only. "
+            "The lines follow the vortex-lattice airflow and stay outside the plate. "
+            "Color shows speed: pale is faster, blue is slower. "
+            "Drag includes induced drag and skin friction. "
             "Not a wind tunnel, and not the SU2 nozzle run. "
             "The vehicle is sized for a 5 second rocket burn. It is not a flown airplane."
         ),
@@ -181,11 +283,11 @@ def main():
     OUT.write_text(json.dumps(payload, indent=2), encoding="utf-8")
     FLOW.write_text(json.dumps({"cases": cases}, separators=(",", ":")), encoding="utf-8")
     print(f"wing area {area:.3f} m^2, speed {SPEED:.0f} m/s")
-    print("alpha   CL     CDi    L/D    lift N")
+    print("alpha   CL      CD    L/D    lift N   drag N")
     for row in rows:
         print(
             f"{row['alpha_deg']:5.0f}  {row['CL']:7.3f}  {row['CD']:7.4f}  "
-            f"{row['L_over_D']!s:>6}  {row['lift_N']:7.1f}"
+            f"{row['L_over_D']!s:>6}  {row['lift_N']:7.1f}  {row['drag_N']:7.1f}"
         )
     print("wrote", OUT)
     print("wrote", FLOW, "bytes", FLOW.stat().st_size)
