@@ -97,7 +97,7 @@ let flowOn = true;
 
 let radius = 800;
 const loader = new STLLoader();
-loader.load("./rocket-view.stl?v=19", (geometry) => {
+loader.load("./rocket-view.stl?v=26", (geometry) => {
   geometry.computeVertexNormals();
   geometry.center();
   mesh.geometry = geometry;
@@ -190,7 +190,7 @@ function drawChart(alpha) {
 
 slider.addEventListener("input", () => show(Number(slider.value)));
 
-fetch("./aero.json?v=19")
+fetch("./aero.json?v=25")
   .then((res) => {
     if (!res.ok) throw new Error(String(res.status));
     return res.json();
@@ -285,7 +285,7 @@ document.getElementById("flow-toggle").addEventListener("click", (event) => {
   if (aero) show(Number(slider.value));
 });
 
-fetch("./flow.json?v=19")
+fetch("./flow.json?v=25")
   .then((res) => {
     if (!res.ok) throw new Error(String(res.status));
     return res.json();

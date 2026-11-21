@@ -271,13 +271,14 @@ public static class RocketBody
         Lattice lat = new(lib);
         float fZ = (float)oShape.NoseBaseZ;
         float fTip = (float)(oShape.HoleR - 14.0);
-        lat.AddBeam(new Vector3(0, -28f, fZ), new Vector3(0, -6f, fZ), 14f, 18f, bRoundCap: false);
-        lat.AddBeam(new Vector3(0, -6f, fZ), new Vector3(0, 22f, fZ), 18f, 5f, bRoundCap: true);
+        lat.AddBeam(new Vector3(0, -22f, fZ), new Vector3(0, -6f, fZ), 13f, 17f, bRoundCap: false);
+        lat.AddBeam(new Vector3(0, -6f, fZ), new Vector3(0, 10f, fZ), 17f, 15f, bRoundCap: false);
+        lat.AddBeam(new Vector3(0, 10f, fZ), new Vector3(0, 30f, fZ), 15f, 3.5f, bRoundCap: true);
         const int nBlades = 7;
         for (int i = 0; i < nBlades; i++)
-            AddBlade(lat, 2.0 * Math.PI * i / nBlades, fZ, 18f, fTip, 0f, 0.90, 0.28, 2.3f);
+            AddBlade(lat, 2.0 * Math.PI * i / nBlades, fZ, 18f, fTip, 0f, 0.85, 0.22, 4.8f, 11, 8);
         for (int i = 0; i < 5; i++)
-            AddBlade(lat, Math.PI * 2.0 * i / 5.0 + 0.3, fZ, 28f, fTip - 4f, (float)(-oShape.BodyHalfH * 0.42), 0.42, 0.42, 2.1f);
+            AddBlade(lat, Math.PI * 2.0 * i / 5.0 + 0.35, fZ, 22f, fTip - 6f, (float)(-oShape.BodyHalfH * 0.55), 0.35, 0.35, 3.6f, 8, 5);
         AddLip(lat, oShape, (float)(oShape.BodyHalfH - 2.0));
         AddLip(lat, oShape, (float)(-oShape.BodyHalfH + 2.0));
         return new Voxels(lat);
@@ -285,10 +286,8 @@ public static class RocketBody
 
     static void AddBlade(
         Lattice lat, double fAngle, float fHubZ, float fRoot, float fTip,
-        float fHeight, double fPitchRoot, double fPitchTip, float fRadius)
+        float fHeight, double fPitchRoot, double fPitchTip, float fRadius, int nSpan, int nChord)
     {
-        const int nSpan = 7;
-        const int nChord = 5;
         Vector3[,] ao = new Vector3[nSpan, nChord];
         double fRx = Math.Cos(fAngle);
         double fRz = Math.Sin(fAngle);
@@ -352,14 +351,14 @@ public static class RocketBody
         double fLen = Math.Max(1.0, oShape.MountZ - oShape.NoseTipZ);
         float fHingeZ = (float)(oShape.NoseTipZ + 0.90 * fLen);
         float fEdgeZ = (float)(oShape.NoseTipZ + 0.96 * fLen);
-        float fX0 = (float)(oShape.FuselageHalf * 0.35);
-        float fX1 = (float)(oShape.FuselageHalf + 20.0);
+        float fX0 = (float)(oShape.FuselageHalf * 0.30);
+        float fX1 = (float)(oShape.FuselageHalf * 0.82);
         foreach (int nSide in new[] { -1, 1 })
         {
-            Vector3 vecHinge0 = new(nSide * fX0, -36f, fHingeZ);
-            Vector3 vecHinge1 = new(nSide * fX1, -32f, fHingeZ);
-            Vector3 vecEdge0 = new(nSide * fX0, -42f, fEdgeZ);
-            Vector3 vecEdge1 = new(nSide * fX1, -36f, fEdgeZ);
+            Vector3 vecHinge0 = new(nSide * fX0, -28f, fHingeZ);
+            Vector3 vecHinge1 = new(nSide * fX1, -24f, fHingeZ);
+            Vector3 vecEdge0 = new(nSide * fX0, -18f, fEdgeZ);
+            Vector3 vecEdge1 = new(nSide * fX1, -14f, fEdgeZ);
             const int nRibs = 36;
             for (int i = 0; i <= nRibs; i++)
             {
@@ -629,10 +628,10 @@ public static class RocketBody
     {
         double fLen = Math.Max(1.0, o.MountZ - o.NoseTipZ);
         float fZ = (float)(o.NoseTipZ + 0.895 * fLen);
-        float fX0 = (float)(o.FuselageHalf * 0.32);
-        float fX1 = (float)(o.FuselageHalf + 28.0);
-        lat.AddBeam(new Vector3(fX0, -3f, fZ), new Vector3(fX1, -3f, fZ), 3.6f, 3.6f, bRoundCap: false);
-        lat.AddBeam(new Vector3(-fX0, -3f, fZ), new Vector3(-fX1, -3f, fZ), 3.6f, 3.6f, bRoundCap: false);
+        float fX0 = (float)(o.FuselageHalf * 0.28);
+        float fX1 = (float)(o.FuselageHalf * 0.84);
+        lat.AddBeam(new Vector3(fX0, -30f, fZ), new Vector3(fX1, -26f, fZ), 2.2f, 2.2f, bRoundCap: false);
+        lat.AddBeam(new Vector3(-fX0, -30f, fZ), new Vector3(-fX1, -26f, fZ), 2.2f, 2.2f, bRoundCap: false);
     }
 
     static void AddScoop(Lattice lat, Shape o)
