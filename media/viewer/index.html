@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Impetus vehicle</title>
+<title>UFO</title>
 <style>
   html, body { margin: 0; height: 100%; background: #121418; color: #e7ebf0; font-family: "Segoe UI", sans-serif; }
   #view { position: fixed; inset: 0; }
@@ -46,7 +46,7 @@
   <button type="button" id="flow-toggle">Flow on</button>
 </div>
 <aside id="panel">
-  <h1>Aero estimate</h1>
+  <h1>UFO</h1>
   <p id="note">Loading the vortex-lattice table…</p>
   <label id="alpha-label">Angle of attack 4°</label>
   <input id="alpha" type="range" min="-4" max="14" step="2" value="4" disabled />
@@ -97,7 +97,7 @@ let flowOn = true;
 
 let radius = 800;
 const loader = new STLLoader();
-loader.load("./rocket-view.stl?v=6", (geometry) => {
+loader.load("./rocket-view.stl?v=19", (geometry) => {
   geometry.computeVertexNormals();
   geometry.center();
   mesh.geometry = geometry;
@@ -190,7 +190,7 @@ function drawChart(alpha) {
 
 slider.addEventListener("input", () => show(Number(slider.value)));
 
-fetch("./aero.json?v=6")
+fetch("./aero.json?v=19")
   .then((res) => {
     if (!res.ok) throw new Error(String(res.status));
     return res.json();
@@ -233,8 +233,6 @@ function setFlow(alpha) {
   flowPaths = [];
   for (const line of found.lines) {
     if (line.length < 2) continue;
-    // Outboard lines sit on the plate in a side view, so keep the center rake.
-    if (Math.abs(line[0][0]) > 40) continue;
     const positions = [];
     const colors = [];
     const path = [];
@@ -251,7 +249,7 @@ function setFlow(alpha) {
     flow.add(new THREE.Line(geom, flowMaterial));
     flowPaths.push(path);
   }
-  const dots = new Float32Array(flowPaths.length * 2 * 3);
+  const dots = new Float32Array(flowPaths.length * 3 * 3);
   const geom = new THREE.BufferGeometry();
   geom.setAttribute("position", new THREE.BufferAttribute(dots, 3));
   flowDots = new THREE.Points(geom, new THREE.PointsMaterial({
@@ -265,14 +263,14 @@ function moveFlow(time) {
   const arr = flowDots.geometry.attributes.position.array;
   const seconds = time * 0.001;
   flowPaths.forEach((path, i) => {
-    for (let dot = 0; dot < 2; dot++) {
-      const u = (seconds * 0.22 + i * 0.137 + dot * 0.5) % 1;
+    for (let dot = 0; dot < 3; dot++) {
+      const u = (seconds * 0.28 + i * 0.071 + dot * 0.33) % 1;
       const f = u * (path.length - 1);
       const k = Math.min(path.length - 2, Math.floor(f));
       const s = f - k;
       const a = path[k];
       const b = path[k + 1];
-      const n = (i * 2 + dot) * 3;
+      const n = (i * 3 + dot) * 3;
       arr[n] = a.x + (b.x - a.x) * s;
       arr[n + 1] = a.y + (b.y - a.y) * s;
       arr[n + 2] = a.z + (b.z - a.z) * s;
@@ -287,7 +285,7 @@ document.getElementById("flow-toggle").addEventListener("click", (event) => {
   if (aero) show(Number(slider.value));
 });
 
-fetch("./flow.json?v=6")
+fetch("./flow.json?v=19")
   .then((res) => {
     if (!res.ok) throw new Error(String(res.status));
     return res.json();

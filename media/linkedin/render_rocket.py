@@ -80,11 +80,11 @@ def main():
     pictures = root / "media"
     pts, nrm = load_surface(out / "rocket.stl", stride=2)
     views = [
-        (58, -32, (1500, 900), "rocket.png", "Round plate", "Thick in the middle, thin at the rim. Engine at the back."),
-        (88, -12, (1500, 700), "rocket-aft.png", "From the side", "The plate is much wider than it is thick."),
-        (0, 90, (1500, 900), "rocket-top.png", "From above", "A round plate. Nose at the top."),
-        (180, 0, (1200, 800), "rocket-front.png", "From the front", "Wing and tail against the nose."),
-        (0, 0, (1200, 800), "rocket-rear.png", "From the nozzle", "The rocket engine is the tail."),
+        (58, -32, (1500, 900), "rocket.png", "UFO", "Teardrop body, duct, one engine in the tail."),
+        (88, -12, (1500, 700), "rocket-aft.png", "From the side", "Round nose, sharp tail."),
+        (0, 90, (1500, 900), "rocket-top.png", "From above", "Blended wings. The duct is in the middle."),
+        (180, 0, (1200, 800), "rocket-front.png", "From the front", "The nose, seen head-on."),
+        (0, 0, (1200, 800), "rocket-rear.png", "From behind", "Canted fins and one engine."),
         (128, -24, (1500, 900), "rocket-quarter.png", "Other side", "The same vehicle, from the other rear quarter."),
     ]
     for yaw, pitch, size, name, title, subtitle in views:
