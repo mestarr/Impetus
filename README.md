@@ -106,7 +106,7 @@ To design another engine, copy a spec, change `name` and the numbers, and run
 | `diff` | Compare two specs |
 | `export-only` | Rebuild meshes from an existing design |
 | `stage` / `test-stand` / `post-hotfire` | Stage sizing and hot-fire notes |
-| `rocket` | Round plate, two tanks, a short fin, and this engine at the back |
+| `rocket` | UFO: teardrop lifting body, blended wings, a duct with a fan shape, two tanks, and one of these engines in the tail |
 | `smoke` | PicoGK sanity check, no engine |
 
 ## What you get
