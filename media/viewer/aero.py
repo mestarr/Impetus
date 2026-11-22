@@ -115,31 +115,18 @@ def view_center_mm():
 
 
 CLEARANCE = 0.014
+_profile_cache = {}
 
 
 def seeds():
-    """Lines over the body, plus lines that pass above and below the whole wing.
+    """Lines all around the vehicle, from below the belly to above the fins.
 
-    Outboard lines at fuselage height are left out. From the side they stack
-    on the body and look as if they pass through it.
+    The outer rows pass the wingtips. Rows aimed at the body settle on the skin.
     """
-    center = [
-        [NOSE_X - 0.28, y, z]
-        for z in np.linspace(-0.12, 0.22, 9)
-        for y in np.linspace(-0.24, 0.24, 7)
-    ]
-    wide = [
-        [NOSE_X - 0.28, y, z]
-        for z in (-0.12, 0.16, 0.22)
-        for y in np.linspace(-0.55, 0.55, 11)
-        if abs(y) > 0.24
-    ]
-    near = [
-        [NOSE_X - 0.18, y, z]
-        for z in (-0.03, 0.04)
-        for y in np.linspace(-0.22, 0.22, 9)
-    ]
-    return np.array(center + wide + near, dtype=float)
+    span = [float(y) for y in np.linspace(-0.82, 0.82, 29)]
+    heights = (-0.20, -0.10, -0.035, 0.035, 0.10, 0.18, 0.30)
+    start = NOSE_X - 0.55
+    return np.array([[start, y, z] for z in heights for y in span], dtype=float)
 
 
 def smooth(t):
@@ -196,7 +183,7 @@ def fin_bump(x, y):
         s = smooth((x3 - x) / (x3 - x2))
     else:
         s = 1.0
-    return 0.09 * s * span
+    return 0.11 * s * span
 
 
 def half_width(x):
@@ -242,20 +229,15 @@ def surface_z(x, y, side, fin=True):
             edge = smooth(float(np.clip((1.15 - q) / 0.40, 0.0, 1.0)))
             target = max(height, crown - camber)
             height = height + (target - height) * edge
-    z = camber + side * (height + CLEARANCE)
-    if side < 0.0:
-        flap = flap_bottom(x, y)
-        if flap is not None:
-            z = min(z, flap)
-    return z
+    return camber + side * (height + CLEARANCE)
 
 
 def flap_bottom(x, y):
     """Lower edge of a flap, or None when this station has no flap."""
-    if abs(y) < 0.06 or abs(y) > 0.28 or x < 0.02 or x > 0.10:
+    if abs(y) < 0.05 or abs(y) > 0.21 or x < 0.02 or x > 0.10:
         return None
     t = float(np.clip((x - 0.030) / 0.055, 0.0, 1.0))
-    return -0.036 - 0.008 * t
+    return -0.020 - 0.004 * (1.0 - t)
 
 
 def in_opening(point):
@@ -292,17 +274,24 @@ MAX_TURN = np.radians(9.0)
 
 
 def clear_fins(point):
-    """Lift a point that has entered a canted fin up over that fin."""
+    """Bend a line around a fin. Air parts to the side instead of jumping over."""
     p = np.array(point, dtype=float)
-    if p[0] < -0.15 or p[0] > 0.0:
+    if p[2] < 0.02 or p[0] < FIN_X - 0.04 or p[0] > FIN_X + 0.20:
         return p
-    ay = abs(float(p[1]))
-    if ay < 0.045 or ay > 0.16:
+    cant = np.radians(32.0)
+    rise = (p[2] - FIN_ROOT_Z) / max(np.cos(cant), 0.3)
+    if rise < -0.02 or rise > 0.17:
         return p
-    span = float(np.clip((ay - 0.050) / 0.090, 0.0, 1.0))
-    top = 0.045 + 0.135 * span
-    if top - 0.028 <= p[2] <= top + 0.006:
-        p[2] = top + 0.012
+    center = 0.058 + max(rise, 0.0) * np.sin(cant)
+    sign = 1.0 if p[1] >= 0.0 else -1.0
+    away = abs(p[1]) - center
+    half = 0.024
+    if abs(away) >= half:
+        return p
+    # The nearer open side is inboard when the point is inboard of the fin.
+    target = center - half - 0.014 if away < 0.0 else center + half + 0.014
+    step = float(np.clip(sign * target - p[1], -0.012, 0.012))
+    p[1] += step
     return p
 
 
@@ -357,25 +346,22 @@ def _avoid_engine_and_flaps(p):
                 scale = min(0.030 / rad, 1.0 + 0.006 / rad)
                 p[1] *= scale
                 p[2] *= scale
-    flap = flap_bottom(p[0], p[1])
-    if flap is not None and flap < p[2] < -0.004:
-        p[2] = flap
     return p
 
 
 def sit(point, nxt, side):
-    """Move toward the skin, but no steeper than the real surface."""
-    z = surface_z(nxt[0], nxt[1], side)
+    """Stay outside the local wing, and begin a gentle curve before the nose."""
+    z = surface_z(nxt[0], nxt[1], side, fin=False)
     if z is None:
+        future = surface_z(float(nxt[0]) + 0.08, float(nxt[1]), side, fin=False)
+        if future is not None:
+            gap = future - float(nxt[2])
+            closing = (side > 0.0 and gap > 0.006) or (side < 0.0 and gap < -0.006)
+            if closing:
+                nxt[2] = float(nxt[2]) + float(np.clip(gap * 0.25, -0.008, 0.008))
         return nxt
-    inside = (side > 0.0 and point[2] < z - 0.002) or (side < 0.0 and point[2] > z + 0.002)
-    if inside:
+    if (side > 0.0 and nxt[2] < z) or (side < 0.0 and nxt[2] > z):
         nxt[2] = z
-        return nxt
-    dz = z - point[2]
-    horiz = max(float(np.hypot(nxt[0] - point[0], nxt[1] - point[1])), 1e-4)
-    limit = horiz * 0.7
-    nxt[2] = point[2] + float(np.clip(dz, -limit, limit))
     return nxt
 
 
@@ -408,8 +394,8 @@ def steer(vel, prev):
 def slide(point, vel, side, ds, limit):
     """Follow the airflow along the skin instead of stepping into it."""
     h = 0.012
-    zx = surface_z(point[0] + h, point[1], side)
-    zy = surface_z(point[0], point[1] + h, side)
+    zx = surface_z(point[0] + h, point[1], side, fin=False)
+    zy = surface_z(point[0], point[1] + h, side, fin=False)
     dzdx = 0.0 if zx is None else (zx - limit) / h
     dzdy = 0.0 if zy is None else (zy - limit) / h
     normal = np.array([-dzdx, -dzdy, 1.0])
@@ -434,7 +420,7 @@ def advance(point, vel, side, ds):
     if in_opening(point):
         nxt = clear_fan(point + ds * v / mag, side)
         return avoid_solid(nxt)
-    limit = surface_z(point[0], point[1], side)
+    limit = surface_z(point[0], point[1], side, fin=False)
     on_skin = limit is not None and (
         (side > 0.0 and point[2] <= limit + 0.006) or (side < 0.0 and point[2] >= limit - 0.006)
     )
@@ -443,7 +429,7 @@ def advance(point, vel, side, ds):
     nxt = point + ds * v / mag
     if in_opening(nxt):
         return avoid_solid(clear_fan(nxt, side))
-    cap = surface_z(nxt[0], nxt[1], side)
+    cap = surface_z(nxt[0], nxt[1], side, fin=False)
     penetrated = cap is not None and (
         (side > 0.0 and nxt[2] < cap) or (side < 0.0 and nxt[2] > cap)
     )
@@ -477,21 +463,107 @@ def _fillet(out):
             if nu < 1e-4 or nv < 1e-4:
                 continue
             ang = float(np.arccos(np.clip(np.dot(u, v) / (nu * nv), -1.0, 1.0)))
-            if ang < np.radians(16.0):
+            if ang < np.radians(8.0):
                 continue
             nxt[i, k] = 0.5 * b + 0.25 * a + 0.25 * c
     return nxt
 
 
-def smooth_paths(xyz, sides):
-    """Round a hard corner, then move the point back outside the metal."""
+def ease_approach(xyz, sides):
+    """Meet the wing on a slope instead of a one-step drop into the skin."""
     out = np.array(xyz, dtype=float)
-    for _ in range(5):
+    for i in range(out.shape[0]):
+        side = sides[i]
+        for k in range(out.shape[1] - 2, -1, -1):
+            dz = float(out[i, k + 1, 2] - out[i, k, 2])
+            dx = max(abs(float(out[i, k + 1, 0] - out[i, k, 0])), 0.004)
+            limit = 0.65 * dx
+            if abs(dz) <= limit:
+                continue
+            target = float(out[i, k + 1, 2] - np.sign(dz) * limit)
+            skin = surface_z(out[i, k, 0], out[i, k, 1], side, fin=False)
+            if skin is None:
+                out[i, k, 2] = target
+            elif side > 0.0:
+                out[i, k, 2] = max(target, skin)
+            else:
+                out[i, k, 2] = min(target, skin)
+    return out
+
+
+def profile_bound(x, side):
+    """Highest or lowest skin at this station, so a side view does not cross the wing."""
+    key = (round(float(x), 3), 1 if side > 0.0 else -1)
+    cached = _profile_cache.get(key)
+    if cached is not None or key in _profile_cache:
+        return cached
+    width = half_width(x)
+    if width <= 0.0:
+        _profile_cache[key] = None
+        return None
+    bound = None
+    for y in np.linspace(0.0, max(width - 0.008, 0.0), 14):
+        z = surface_z(float(x), float(y), side, fin=True)
+        if z is None:
+            continue
+        bound = z if bound is None else (max(bound, z) if side > 0.0 else min(bound, z))
+    _profile_cache[key] = bound
+    return bound
+
+
+def on_profile(xyz, sides):
+    """Move a line that would cross the wing out to the top or the bottom skin."""
+    out = np.array(xyz, dtype=float)
+    for i in range(out.shape[0]):
+        side = float(sides[i])
+        for k in range(out.shape[1]):
+            bound = profile_bound(out[i, k, 0], side)
+            if bound is None:
+                continue
+            if side > 0.0 and out[i, k, 2] < bound:
+                out[i, k, 2] = bound
+            elif side < 0.0 and out[i, k, 2] > bound:
+                out[i, k, 2] = bound
+    return out
+
+
+def _relax(out):
+    """Take the sharpness out of a line without moving its ends."""
+    nxt = out.copy()
+    nxt[:, 1:-1] = 0.22 * out[:, :-2] + 0.56 * out[:, 1:-1] + 0.22 * out[:, 2:]
+    return nxt
+
+
+def on_belly(xyz, sides):
+    """Keep underside lines on the belly when they pass over the wing.
+
+    A line beside the tip stays at its own height.
+    """
+    out = np.array(xyz, dtype=float)
+    for i in range(out.shape[0]):
+        if float(sides[i]) >= 0.0:
+            continue
+        for k in range(out.shape[1]):
+            if abs(float(out[i, k, 1])) > half_width(float(out[i, k, 0])) + 0.02:
+                continue
+            bound = profile_bound(out[i, k, 0], -1.0)
+            if bound is not None and out[i, k, 2] > bound:
+                out[i, k, 2] = bound
+    return out
+
+
+def smooth_paths(xyz, sides):
+    """Smooth the trace, then put each sample back outside its own part of the wing."""
+    out = ease_approach(np.array(xyz, dtype=float), sides)
+    for _ in range(3):
+        out = _relax(out)
         out = _fillet(out)
     out = _place(out, sides, fin=False)
-    for _ in range(4):
+    out = on_belly(out, sides)
+    out = ease_approach(out, sides)
+    for _ in range(2):
         out = _fillet(out)
-    return _place(out, sides, fin=False)
+    return on_belly(out, sides)
 
 
 def _place(xyz, sides, fin=True):
